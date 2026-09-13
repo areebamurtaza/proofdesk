@@ -1,0 +1,247 @@
+// filepath: prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------
+// ENUMS
+// --------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum DeliverableStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  PAYMENT_PENDING
+  COMPLETED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum FileType {
+  PDF
+  PNG
+  JPG
+  SVG
+}
+
+enum CommentAuthorType {
+  AGENCY
+  CLIENT
+}
+
+// --------------------------------------------------------
+// CORE WORKSPACE & RBAC (CLERK AUTHENTICATED)
+// --------------------------------------------------------
+
+model Agency {
+  id              String    @id @default(uuid())
+  clerkOrgId      String    @unique // Maps 1:1 to Clerk Organization (or user_<id> for personal studios)
+  name            String
+  slug            String    @unique
+  stripeAccountId String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  users           User[]
+  projects        Project[]
+
+  @@index([clerkOrgId])
+  @@index([slug])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  role      UserRole @default(MEMBER)
+  agencyId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency    Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+
+  @@index([agencyId])
+  @@index([clerkId])
+}
+
+// --------------------------------------------------------
+// CLIENT PROJECTS & DELIVERABLES
+// --------------------------------------------------------
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  clientName  String
+  clientEmail String
+  agencyId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  deliverables Deliverable[]
+  invoices     Invoice[]
+
+  @@index([agencyId])
+  @@index([clientEmail])
+}
+
+model Deliverable {
+  id          String            @id @default(uuid())
+  title       String
+  description String?           @db.Text
+  fileType    FileType
+  status      DeliverableStatus @default(DRAFT)
+  isUnlocked  Boolean           @default(false)
+  reviewToken String            @unique @default(uuid())
+  projectId   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions       Version[]
+  approvalRecord ApprovalRecord?
+  invoice        Invoice?
+  accessLogs     ReviewAccessLog[]
+
+  @@index([projectId])
+  @@index([reviewToken])
+  @@index([status])
+}
+
+// --------------------------------------------------------
+// VERSIONING & ASSETS
+// --------------------------------------------------------
+
+model Version {
+  id            String   @id @default(uuid())
+  versionNumber Int
+  cleanFileKey  String
+  previewKey    String
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  width         Int?
+  height        Int?
+  changeLog     String?  @db.Text
+  deliverableId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  deliverable   Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  comments      Comment[]
+
+  @@unique([deliverableId, versionNumber])
+  @@index([deliverableId])
+}
+
+// --------------------------------------------------------
+// ANNOTATIONS & PINNED FEEDBACK
+// --------------------------------------------------------
+
+model Comment {
+  id          String            @id @default(uuid())
+  versionId   String
+  authorType  CommentAuthorType
+  authorName  String
+  authorEmail String?
+  userId      String?
+  content     String            @db.Text
+  xPercent    Float
+  yPercent    Float
+  isResolved  Boolean           @default(false)
+  parentId    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  version     Version   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  @@index([versionId])
+  @@index([parentId])
+}
+
+// --------------------------------------------------------
+// ZERO-LOGIN ACCESS LOGS & AUDIT TRAIL
+// --------------------------------------------------------
+
+model ReviewAccessLog {
+  id            String      @id @default(uuid())
+  deliverableId String
+  action        String      @default("VIEW_PORTAL") // "VIEW_PORTAL" | "DROP_PIN" | "APPROVE_DELIVERABLE" | "DOWNLOAD_MASTER"
+  ipAddress     String
+  userAgent     String
+  accessedAt    DateTime    @default(now())
+
+  deliverable   Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+
+  @@index([deliverableId])
+  @@index([accessedAt])
+}
+
+model ApprovalRecord {
+  id              String   @id @default(uuid())
+  deliverableId   String   @unique
+  approvedVersion Int
+  signerName      String
+  signerEmail     String
+  ipAddress       String
+  userAgent       String
+  legalConsent    String   @db.Text
+  signatureHash   String
+  approvedAt      DateTime @default(now())
+
+  deliverable     Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+
+  @@index([deliverableId])
+  @@index([signerEmail])
+}
+
+// --------------------------------------------------------
+// PAYMENTS & STRIPE ESCROW INTEGRATION
+// --------------------------------------------------------
+
+model Invoice {
+  id                      String        @id @default(uuid())
+  amount                  Int
+  currency                String        @default("usd")
+  status                  InvoiceStatus @default(DRAFT)
+  deliverableId           String        @unique
+  projectId               String
+  stripePaymentIntentId   String?       @unique
+  stripeCheckoutSessionId String?       @unique
+  idempotencyKey          String?       @unique
+  paidAt                  DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  deliverable             Deliverable   @relation(fields: [deliverableId], references: [id], onDelete: Restrict)
+  project                 Project       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([deliverableId])
+  @@index([projectId])
+  @@index([stripeCheckoutSessionId])
+  @@index([stripePaymentIntentId])
+}

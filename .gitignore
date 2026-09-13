@@ -27,10 +27,24 @@ yarn-error.log*
 
 # local env files
 .env*.local
-
+.env
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Environment variables (CRITICAL)
+.env
+.env*.local
+.env.local
+.env.production
+.env.development
+
+# Local binary storage & mock uploads
+.storage/
+.storage/**
+
+# Scaffolding scripts
+scaffold-review.js
