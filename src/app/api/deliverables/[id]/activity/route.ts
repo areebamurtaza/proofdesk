@@ -1,7 +1,7 @@
 // filepath: src/app/api/deliverables/[id]/activity/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getOrCreateCurrentAgency } from "@/lib/agency";
+import { getVerifiedDeliverableAgency } from "@/lib/agency";
 
 export const dynamic = "force-dynamic";
 
@@ -13,16 +13,6 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    let agency;
-    try {
-      agency = await getOrCreateCurrentAgency();
-    } catch {
-      return NextResponse.json(
-        { error: "Unauthorized. Active agency session required." },
-        { status: 401 }
-      );
-    }
-
     const { id } = params;
     if (!id) {
       return NextResponse.json(
@@ -31,18 +21,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verify deliverable ownership within this agency workspace
-    const deliverable = await prisma.deliverable.findFirst({
-      where: {
-        id,
-        project: {
-          agencyId: agency.id,
-        },
-      },
-      select: { id: true },
-    });
+    const requestedOrgId =
+      request.nextUrl.searchParams.get("orgId") ||
+      request.headers.get("x-clerk-org-id");
 
-    if (!deliverable) {
+    let verified;
+    try {
+      verified = await getVerifiedDeliverableAgency(id, requestedOrgId);
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized. Active agency session required." },
+        { status: 401 }
+      );
+    }
+
+    if (!verified) {
       return NextResponse.json(
         { error: "Deliverable record not found or access denied." },
         { status: 404 }

@@ -149,3 +149,66 @@ export async function getOrCreateCurrentAgency(preferredOrgId?: string | null) {
 
   return personalAgency;
 }
+
+/**
+ * Verifies whether the currently authenticated user has access to a specific deliverable.
+ * - Access is granted if the deliverable's agency is personal (user_<userId>) OR
+ * - The deliverable's agency is an organization (org_<orgId>) and the user is a member of that organization.
+ */
+export async function getVerifiedDeliverableAgency(
+  deliverableId: string,
+  requestedOrgId?: string | null
+) {
+  const session = auth();
+  const { userId } = session;
+
+  if (!userId) {
+    throw new Error("UNAUTHORIZED: No active authentication session found.");
+  }
+
+  // 1. First, check if current active agency owns the deliverable
+  const currentAgency = await getOrCreateCurrentAgency(requestedOrgId);
+
+  const deliverable = await prisma.deliverable.findUnique({
+    where: { id: deliverableId },
+    include: {
+      project: {
+        include: { agency: true },
+      },
+    },
+  });
+
+  if (!deliverable) {
+    return null;
+  }
+
+  // 2. Direct match with current active agency
+  if (deliverable.project.agencyId === currentAgency.id) {
+    return { agency: currentAgency, deliverable };
+  }
+
+  // 3. Check if user owns the personal agency that created this deliverable
+  const ownerClerkOrgId = deliverable.project.agency.clerkOrgId;
+  if (ownerClerkOrgId === `user_${userId}`) {
+    return { agency: deliverable.project.agency, deliverable };
+  }
+
+  // 4. Check if user is a member of the organization that owns this deliverable
+  if (ownerClerkOrgId.startsWith("org_")) {
+    const client = await resolveClerkClient();
+    try {
+      const memberships = await client.users.getOrganizationMembershipList({ userId });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isMember = memberships?.data?.some(
+        (m: { organization: { id: string } }) => m.organization.id === ownerClerkOrgId
+      );
+      if (isMember) {
+        return { agency: deliverable.project.agency, deliverable };
+      }
+    } catch (err) {
+      console.warn("[Clerk] Failed to verify organization membership for deliverable access:", err);
+    }
+  }
+
+  return null;
+}

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { getOrCreateCurrentAgency } from "@/lib/agency";
+import { getVerifiedDeliverableAgency } from "@/lib/agency";
 import { sendReviewInviteEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +26,6 @@ const createVersionSchema = z.object({
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    // 1. Authenticate Clerk agency context
-    const agency = await getOrCreateCurrentAgency();
     const { id } = params;
 
     if (!id) {
@@ -36,6 +34,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    const requestedOrgId =
+      request.nextUrl.searchParams.get("orgId") ||
+      request.headers.get("x-clerk-org-id");
+
+    let verified;
+    try {
+      verified = await getVerifiedDeliverableAgency(id, requestedOrgId);
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized. Active agency session required." },
+        { status: 401 }
+      );
+    }
+
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Deliverable record not found or access unauthorized." },
+        { status: 404 }
+      );
+    }
+
+    const { agency } = verified;
 
     // 2. Validate request payload
     const rawBody = await request.json();
@@ -59,14 +80,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       height,
     } = validation.data;
 
-    // 3. Multi-tenant verified lookup: Deliverable must belong to this agency
-    const deliverable = await prisma.deliverable.findFirst({
-      where: {
-        id,
-        project: {
-          agencyId: agency.id,
-        },
-      },
+    // 3. Multi-tenant verified lookup
+    const deliverable = await prisma.deliverable.findUnique({
+      where: { id },
       include: {
         versions: {
           orderBy: { versionNumber: "desc" },

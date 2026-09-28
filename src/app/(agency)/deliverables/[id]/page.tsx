@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import {
   ArrowLeft,
   Copy,
@@ -145,6 +146,7 @@ function getActionMeta(action: string) {
 export default function DeliverableDetailPage() {
   const params = useParams();
   const deliverableId = params?.id as string;
+  const { orgId, isLoaded: isAuthLoaded } = useAuth();
 
   const [deliverable, setDeliverable] = useState<DeliverableDetail | null>(null);
   const [activeVersionIndex, setActiveVersionIndex] = useState<number>(0);
@@ -160,12 +162,16 @@ export default function DeliverableDetailPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState<boolean>(false);
 
-  const fetchDetail = useCallback(async () => {
+  const fetchDetail = useCallback(async (targetOrgId?: string | null) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const res = await fetch(`/api/deliverables/${deliverableId}`, { cache: "no-store" });
+      const queryParam = targetOrgId ? `?orgId=${encodeURIComponent(targetOrgId)}` : "";
+      const res = await fetch(`/api/deliverables/${deliverableId}${queryParam}`, {
+        cache: "no-store",
+        headers: targetOrgId ? { "x-clerk-org-id": targetOrgId } : {},
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to load deliverable details.");
@@ -184,10 +190,14 @@ export default function DeliverableDetailPage() {
     }
   }, [deliverableId]);
 
-  const fetchActivityLogs = useCallback(async () => {
+  const fetchActivityLogs = useCallback(async (targetOrgId?: string | null) => {
     try {
       setIsLoadingLogs(true);
-      const res = await fetch(`/api/deliverables/${deliverableId}/activity`, { cache: "no-store" });
+      const queryParam = targetOrgId ? `?orgId=${encodeURIComponent(targetOrgId)}` : "";
+      const res = await fetch(`/api/deliverables/${deliverableId}/activity${queryParam}`, {
+        cache: "no-store",
+        headers: targetOrgId ? { "x-clerk-org-id": targetOrgId } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setActivityLogs(data.logs || []);
@@ -200,11 +210,11 @@ export default function DeliverableDetailPage() {
   }, [deliverableId]);
 
   useEffect(() => {
-    if (deliverableId) {
-      fetchDetail();
-      fetchActivityLogs();
+    if (deliverableId && isAuthLoaded) {
+      fetchDetail(orgId);
+      fetchActivityLogs(orgId);
     }
-  }, [deliverableId, fetchDetail, fetchActivityLogs]);
+  }, [deliverableId, isAuthLoaded, orgId, fetchDetail, fetchActivityLogs]);
 
   const handleCopyReviewLink = () => {
     if (!deliverable) return;
@@ -559,7 +569,7 @@ export default function DeliverableDetailPage() {
                   Zero-Auth Access Trail
                 </span>
                 <button
-                  onClick={fetchActivityLogs}
+                  onClick={() => fetchActivityLogs(orgId)}
                   disabled={isLoadingLogs}
                   className="p-1.5 rounded-md hover:bg-[#F8F6F1] text-[#667085] hover:text-[#171A1F] transition-colors"
                 >

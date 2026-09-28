@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { getOrCreateCurrentAgency } from "@/lib/agency";
+import { getVerifiedDeliverableAgency } from "@/lib/agency";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +21,6 @@ const agencyReplySchema = z.object({
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    let agency;
-    try {
-      agency = await getOrCreateCurrentAgency();
-    } catch {
-      return NextResponse.json(
-        { error: "Unauthorized. Active agency session required." },
-        { status: 401 }
-      );
-    }
-
     const { id } = params;
 
     if (!id) {
@@ -39,6 +29,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       );
     }
+
+    const requestedOrgId =
+      request.nextUrl.searchParams.get("orgId") ||
+      request.headers.get("x-clerk-org-id");
+
+    let verified;
+    try {
+      verified = await getVerifiedDeliverableAgency(id, requestedOrgId);
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized. Active agency session required." },
+        { status: 401 }
+      );
+    }
+
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Target deliverable not found or unauthorized access." },
+        { status: 404 }
+      );
+    }
+
+    const deliverable = verified.deliverable;
 
     const rawBody = await request.json();
     const validation = agencyReplySchema.safeParse(rawBody);
@@ -54,27 +67,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const { versionId, parentId, authorName, content } = validation.data;
-
-    // 1. Verify Deliverable belongs to this Agency Workspace
-    const deliverable = await prisma.deliverable.findFirst({
-      where: {
-        id,
-        project: {
-          agencyId: agency.id,
-        },
-      },
-      select: {
-        id: true,
-        isUnlocked: true,
-      },
-    });
-
-    if (!deliverable) {
-      return NextResponse.json(
-        { error: "Target deliverable not found or unauthorized access." },
-        { status: 404 }
-      );
-    }
 
     // 2. Immutability Gate: Reject replies if deliverable has completed escrow
     if (deliverable.isUnlocked) {

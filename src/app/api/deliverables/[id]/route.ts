@@ -1,7 +1,7 @@
 // filepath: src/app/api/deliverables/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getOrCreateCurrentAgency } from "@/lib/agency";
+import { getVerifiedDeliverableAgency } from "@/lib/agency";
 import { isR2Configured, generatePresignedPreviewUrl } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
@@ -14,16 +14,6 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    let agency;
-    try {
-      agency = await getOrCreateCurrentAgency();
-    } catch {
-      return NextResponse.json(
-        { error: "Unauthorized. Active agency session required." },
-        { status: 401 }
-      );
-    }
-
     const { id } = params;
 
     if (!id) {
@@ -33,14 +23,30 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // MULTI-TENANT ISOLATION: Scoped strictly to projects owned by this agency
-    const deliverable = await prisma.deliverable.findFirst({
-      where: {
-        id,
-        project: {
-          agencyId: agency.id,
-        },
-      },
+    const requestedOrgId =
+      request.nextUrl.searchParams.get("orgId") ||
+      request.headers.get("x-clerk-org-id");
+
+    let verified;
+    try {
+      verified = await getVerifiedDeliverableAgency(id, requestedOrgId);
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized. Active agency session required." },
+        { status: 401 }
+      );
+    }
+
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Deliverable record not found or access denied." },
+        { status: 404 }
+      );
+    }
+
+    // MULTI-TENANT VERIFIED: Scoped strictly to authorized agency
+    const deliverable = await prisma.deliverable.findUnique({
+      where: { id },
       include: {
         project: {
           select: {
