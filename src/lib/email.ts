@@ -111,15 +111,22 @@ export async function sendReviewInviteEmail({
   `;
 
   try {
-    const data = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: EMAIL_FROM,
       to: clientEmail,
       subject: `Review Ready: ${deliverableTitle} (v${versionNumber}) — ${agencyName}`,
       html,
     });
+
+    if (error) {
+      console.error("[Resend Dispatch Failed - Review Invite]:", error);
+      return { success: false, error };
+    }
+
+    console.log("[Resend Dispatch Success - Review Invite]:", data?.id);
     return { success: true, data };
   } catch (error) {
-    console.error("[Resend Error - Review Invite]:", error);
+    console.error("[Resend Exception - Review Invite]:", error);
     return { success: false, error };
   }
 }
@@ -206,15 +213,22 @@ export async function sendPaymentReceiptAndAssetReleaseEmail({
   `;
 
   try {
-    const data = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: EMAIL_FROM,
       to: clientEmail,
       subject: `Asset Unlocked & Receipt: ${deliverableTitle} — ${agencyName}`,
       html,
     });
+
+    if (error) {
+      console.error("[Resend Dispatch Failed - Release Receipt]:", error);
+      return { success: false, error };
+    }
+
+    console.log("[Resend Dispatch Success - Release Receipt]:", data?.id);
     return { success: true, data };
   } catch (error) {
-    console.error("[Resend Error - Release Receipt]:", error);
+    console.error("[Resend Exception - Release Receipt]:", error);
     return { success: false, error };
   }
 }

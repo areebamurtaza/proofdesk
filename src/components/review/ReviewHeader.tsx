@@ -136,14 +136,7 @@ export function ReviewHeader({
 
       {/* Right: Payment Call-to-Action & Dev Simulation Toggle */}
       <div className="flex items-center gap-3">
-        {/* Dev Mode Simulation Switch */}
-        <button
-          onClick={onToggleUnlockedState}
-          title="Developer Test Toggle: Switch between Unpaid (Locked) and Paid (Unlocked) state"
-          className="hidden sm:block text-[11px] px-2.5 py-1 rounded bg-white text-[#667085] hover:text-[#171A1F] border border-[#DDD8CF] font-medium shadow-xs"
-        >
-          Dev Paywall: {deliverable.isUnlocked ? "Paid" : "Unpaid"}
-        </button>
+       
 
         {deliverable.isUnlocked ? (
           /* Clean High-Res Asset Download Trigger */

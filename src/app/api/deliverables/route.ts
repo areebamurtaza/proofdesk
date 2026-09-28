@@ -99,6 +99,7 @@ export async function GET() {
       {
         success: true,
         agencyName: agency.name,
+        isOrgWorkspace: agency.clerkOrgId.startsWith("org_"),
         metrics,
         deliverables: deliverables.map((d) => ({
           id: d.id,

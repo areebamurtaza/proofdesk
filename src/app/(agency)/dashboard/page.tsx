@@ -53,6 +53,8 @@ interface DashboardDeliverable {
 
 export default function AgencyDashboardPage() {
   const [deliverables, setDeliverables] = useState<DashboardDeliverable[]>([]);
+  const [agencyName, setAgencyName] = useState<string>("Agency");
+  const [isOrgWorkspace, setIsOrgWorkspace] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
@@ -79,6 +81,8 @@ export default function AgencyDashboardPage() {
 
       const data = await res.json();
       setDeliverables(data.deliverables || []);
+      if (data.agencyName) setAgencyName(data.agencyName);
+      if (data.isOrgWorkspace !== undefined) setIsOrgWorkspace(Boolean(data.isOrgWorkspace));
     } catch (err: unknown) {
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to load database records."
@@ -123,10 +127,16 @@ export default function AgencyDashboardPage() {
         <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-serif font-bold text-[#171A1F] tracking-tight">
-              Agency Deliverables
+              {agencyName} Deliverables
             </h1>
-            <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#172B4D]/10 text-[#172B4D] border border-[#172B4D]/20">
-              Workspace Live
+            <span
+              className={`hidden sm:inline-flex px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full border ${
+                isOrgWorkspace
+                  ? "bg-[#172B4D]/10 text-[#172B4D] border-[#172B4D]/20"
+                  : "bg-amber-100 text-[#B7791F] border-amber-300"
+              }`}
+            >
+              {isOrgWorkspace ? "Shared Organization" : "Personal Studio"}
             </span>
           </div>
 
@@ -151,6 +161,18 @@ export default function AgencyDashboardPage() {
 
         {/* Main Content Area */}
         <main className="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
+          {/* Workspace Guidance Banner when on Personal Account */}
+          {!isOrgWorkspace && (
+            <div className="p-4 rounded-xl bg-[#F0E7D8] border border-[#D7C3A5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2.5 text-xs text-[#172B4D]">
+                <AlertCircle className="w-4 h-4 text-[#B7791F] shrink-0" />
+                <span>
+                  You are currently in your <strong>Personal Studio</strong>. To collaborate and view team deliverables, select <strong>Zylo Technology</strong> in the bottom-left organization switcher.
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Headline banner */}
           <div className="space-y-1">
             <h2 className="text-xl font-serif font-bold text-[#171A1F]">Creative Operations Center</h2>
