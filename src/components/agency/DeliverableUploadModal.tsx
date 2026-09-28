@@ -22,6 +22,7 @@ interface DeliverableUploadModalProps {
   onClose: () => void;
   projectId?: string;
   onUploadComplete?: (reviewToken: string) => void;
+  orgId?: string | null;
 }
 
 type UploadState =
@@ -204,6 +205,7 @@ export function DeliverableUploadModal({
   onClose,
   projectId,
   onUploadComplete,
+  orgId,
 }: DeliverableUploadModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const companionInputRef = useRef<HTMLInputElement>(null);
@@ -341,9 +343,13 @@ export function DeliverableUploadModal({
       }
 
       setUploadState("COMMITTING");
-      const deliverableResponse = await fetch("/api/deliverables", {
+      const postUrl = orgId ? `/api/deliverables?orgId=${encodeURIComponent(orgId)}` : "/api/deliverables";
+      const deliverableResponse = await fetch(postUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(orgId ? { "x-clerk-org-id": orgId } : {}),
+        },
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || undefined,

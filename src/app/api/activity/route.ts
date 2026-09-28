@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const agency = await getOrCreateCurrentAgency();
     const { searchParams } = new URL(req.url);
+    const requestedOrgId = searchParams.get("orgId") || req.headers.get("x-clerk-org-id");
+    const agency = await getOrCreateCurrentAgency(requestedOrgId);
     const actionFilter = searchParams.get("action");
 
     const whereClause: Record<string, unknown> = {

@@ -30,9 +30,12 @@ const createDeliverableSchema = z
     message: "Either priceDollars or amountCents must be provided.",
   });
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const agency = await getOrCreateCurrentAgency();
+    const requestedOrgId =
+      request.nextUrl.searchParams.get("orgId") ||
+      request.headers.get("x-clerk-org-id");
+    const agency = await getOrCreateCurrentAgency(requestedOrgId);
 
     const deliverables = await prisma.deliverable.findMany({
       where: {
@@ -149,7 +152,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const agency = await getOrCreateCurrentAgency();
+    const requestedOrgId =
+      request.nextUrl.searchParams.get("orgId") ||
+      request.headers.get("x-clerk-org-id");
+    const agency = await getOrCreateCurrentAgency(requestedOrgId);
     const rawBody = await request.json();
     const validation = createDeliverableSchema.safeParse(rawBody);
 

@@ -86,13 +86,15 @@ export function AgencySidebar({ currentPath, deliverablesCount }: AgencySidebarP
       <div className="p-4 border-t border-[#172B4D] space-y-3">
         <div className="flex items-center justify-between">
           <OrganizationSwitcher
+            hidePersonal={false}
             afterSelectOrganizationUrl="/dashboard"
             afterCreateOrganizationUrl="/dashboard"
             afterLeaveOrganizationUrl="/dashboard"
             appearance={{
               elements: {
                 rootBox: "bg-[#172B4D] border border-[#29466F] rounded-lg px-2 py-1 text-white shadow-xs",
-                organizationPreviewTextContainer: "text-xs text-white font-medium",
+                organizationSwitcherTrigger: "text-white hover:text-white text-xs font-medium flex items-center gap-2",
+                organizationPreviewTextContainer: "text-xs font-medium",
                 organizationSwitcherTriggerIcon: "text-[#D7C3A5]",
               },
             }}

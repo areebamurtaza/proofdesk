@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useAuth } from "@clerk/nextjs";
 import {
   Activity,
   ArrowLeft,
@@ -102,6 +103,7 @@ function getActionMeta(action: string) {
 }
 
 export default function AgencyActivityPage() {
+  const { orgId, isLoaded: isAuthLoaded } = useAuth();
   const [logs, setLogs] = useState<ActivityItem[]>([]);
   const [stats, setStats] = useState<ActivityStats>({
     totalViews: 0,
@@ -112,11 +114,19 @@ export default function AgencyActivityPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionFilter, setActionFilter] = useState<string>("ALL");
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (targetOrgId?: string | null) => {
     try {
       setIsLoading(true);
-      const query = actionFilter !== "ALL" ? `?action=${actionFilter}` : "";
-      const res = await fetch(`/api/activity${query}`, { cache: "no-store" });
+      const params = new URLSearchParams();
+      if (actionFilter !== "ALL") params.set("action", actionFilter);
+      if (targetOrgId !== undefined) {
+        params.set("orgId", targetOrgId || "personal");
+      }
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/activity${queryString}`, {
+        cache: "no-store",
+        headers: targetOrgId ? { "x-clerk-org-id": targetOrgId } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -130,8 +140,9 @@ export default function AgencyActivityPage() {
   }, [actionFilter]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    if (!isAuthLoaded) return;
+    fetchLogs(orgId);
+  }, [isAuthLoaded, orgId, fetchLogs]);
 
   return (
     <div className="min-h-screen flex bg-[#F8F6F1] text-[#171A1F] font-sans antialiased">
@@ -164,7 +175,7 @@ export default function AgencyActivityPage() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchLogs}
+              onClick={() => fetchLogs(orgId)}
               disabled={isLoading}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-white text-xs font-semibold transition-colors disabled:opacity-50 shadow-xs"
             >

@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useAuth } from "@clerk/nextjs";
 import { AgencySidebar } from "@/components/agency/AgencySidebar";
 import { DeliverableUploadModal } from "@/components/agency/DeliverableUploadModal";
 import { VersionUploadModal } from "@/components/agency/VersionUploadModal";
@@ -52,6 +53,7 @@ interface DashboardDeliverable {
 }
 
 export default function AgencyDashboardPage() {
+  const { orgId, isLoaded: isAuthLoaded } = useAuth();
   const [deliverables, setDeliverables] = useState<DashboardDeliverable[]>([]);
   const [agencyName, setAgencyName] = useState<string>("Agency");
   const [isOrgWorkspace, setIsOrgWorkspace] = useState<boolean>(true);
@@ -68,12 +70,23 @@ export default function AgencyDashboardPage() {
   } | null>(null);
 
   // Fetch live deliverables committed to PostgreSQL
-  const fetchDeliverables = useCallback(async () => {
+  const fetchDeliverables = useCallback(async (targetOrgId?: string | null) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const res = await fetch("/api/deliverables", { cache: "no-store" });
+      const queryParam =
+        targetOrgId !== undefined
+          ? targetOrgId
+            ? `?orgId=${encodeURIComponent(targetOrgId)}`
+            : `?orgId=personal`
+          : "";
+
+      const res = await fetch(`/api/deliverables${queryParam}`, {
+        cache: "no-store",
+        headers: targetOrgId ? { "x-clerk-org-id": targetOrgId } : {},
+      });
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to load dashboard deliverables.");
@@ -93,8 +106,9 @@ export default function AgencyDashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchDeliverables();
-  }, [fetchDeliverables]);
+    if (!isAuthLoaded) return;
+    fetchDeliverables(orgId);
+  }, [isAuthLoaded, orgId, fetchDeliverables]);
 
   const handleCopyLink = (reviewToken: string) => {
     const origin = window.location.origin;
@@ -294,7 +308,7 @@ export default function AgencyDashboardPage() {
                 <AlertCircle className="w-6 h-6" />
                 <p className="text-xs font-medium">{errorMessage}</p>
                 <button
-                  onClick={fetchDeliverables}
+                  onClick={() => fetchDeliverables(orgId)}
                   className="px-3.5 py-1.5 rounded-lg bg-[#172B4D] text-white text-xs font-semibold hover:bg-[#0B1628] transition-colors"
                 >
                   Retry Fetch
@@ -463,8 +477,9 @@ export default function AgencyDashboardPage() {
       <DeliverableUploadModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+        orgId={orgId}
         onUploadComplete={() => {
-          fetchDeliverables();
+          fetchDeliverables(orgId);
         }}
       />
 
@@ -476,7 +491,7 @@ export default function AgencyDashboardPage() {
         currentVersionNumber={versionTarget?.currentVersion || 1}
         onClose={() => setVersionTarget(null)}
         onVersionUploaded={() => {
-          fetchDeliverables();
+          fetchDeliverables(orgId);
         }}
       />
     </div>

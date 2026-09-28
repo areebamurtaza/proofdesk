@@ -17,36 +17,64 @@ async function resolveClerkClient() {
 
 /**
  * Resolves or dynamically provisions an Agency tenant in PostgreSQL.
- * - When an organization is active (e.g., evomultisales.org), it provisions/syncs that Organization.
- * - If no organization is selected, it provisions a personal agency workspace tied to the user's ID.
+ * - When an organization is requested or active, it provisions/syncs that Organization.
+ * - If no organization is specified and user belongs to orgs, automatically resolves to their organization.
+ * - If user explicitly requests personal or belongs to no orgs, provisions personal agency.
  */
-export async function getOrCreateCurrentAgency() {
+export async function getOrCreateCurrentAgency(preferredOrgId?: string | null) {
   const session = auth();
-  const { userId, orgId, orgSlug } = session;
+  const { userId, orgId: sessionOrgId, orgSlug: sessionOrgSlug } = session;
 
   if (!userId) {
     throw new Error("UNAUTHORIZED: No active authentication session found.");
   }
 
+  const client = await resolveClerkClient();
+  let targetOrgId: string | null = null;
+  let targetOrgSlug: string | undefined = sessionOrgSlug;
+
+  // 1. If caller explicitly passed a preferredOrgId
+  if (preferredOrgId) {
+    if (preferredOrgId === "personal") {
+      targetOrgId = null;
+    } else if (preferredOrgId.startsWith("org_")) {
+      targetOrgId = preferredOrgId;
+    }
+  } else if (sessionOrgId) {
+    // 2. Fall back to active session orgId
+    targetOrgId = sessionOrgId;
+  } else {
+    // 3. Neither provided: check if user has organization memberships in Clerk
+    try {
+      const memberships = await client.users.getOrganizationMembershipList({ userId });
+      if (memberships?.data && memberships.data.length > 0) {
+        // Automatically default to the user's primary organization
+        targetOrgId = memberships.data[0].organization.id;
+        targetOrgSlug = memberships.data[0].organization.slug;
+      }
+    } catch (err) {
+      console.warn("[Clerk] Failed to query user organization memberships:", err);
+    }
+  }
+
   // ============================================================================
-  // CASE 1: Active Clerk B2B Organization Selected (e.g., evomultisales.org)
+  // CASE 1: Active or Resolved Clerk Organization
   // ============================================================================
-  if (orgId) {
+  if (targetOrgId) {
     // Fast-path: Return cached agency tenant if already provisioned
     const existingAgency = await prisma.agency.findUnique({
-      where: { clerkOrgId: orgId },
+      where: { clerkOrgId: targetOrgId },
     });
     if (existingAgency) {
       return existingAgency;
     }
 
-    const client = await resolveClerkClient();
     let orgName = "Agency Workspace";
-    let slug = orgSlug || `org-${orgId.toLowerCase()}`;
+    let slug = targetOrgSlug || `org-${targetOrgId.toLowerCase()}`;
 
     try {
       const clerkOrg = await client.organizations.getOrganization({
-        organizationId: orgId,
+        organizationId: targetOrgId,
       });
 
       if (clerkOrg?.name) {
@@ -57,20 +85,20 @@ export async function getOrCreateCurrentAgency() {
       }
     } catch (error) {
       console.warn(
-        "[Clerk] Could not retrieve organization metadata from API, using session tokens:",
+        "[Clerk] Could not retrieve organization metadata from API, using defaults:",
         error
       );
     }
 
     // Upsert Agency in PostgreSQL matching the Clerk Org ID
     const agency = await prisma.agency.upsert({
-      where: { clerkOrgId: orgId },
+      where: { clerkOrgId: targetOrgId },
       update: {
         name: orgName,
         slug,
       },
       create: {
-        clerkOrgId: orgId,
+        clerkOrgId: targetOrgId,
         name: orgName,
         slug,
       },
@@ -92,7 +120,6 @@ export async function getOrCreateCurrentAgency() {
     return existingPersonalAgency;
   }
 
-  const client = await resolveClerkClient();
   let personalName = "Personal Studio";
 
   try {
