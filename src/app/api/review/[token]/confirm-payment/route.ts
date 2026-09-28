@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { sendPaymentReceiptAndAssetReleaseEmail } from "@/lib/email";
+import { MOCK_DELIVERABLE } from "@/types/review";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    if (token === "demo-token") {
+      return NextResponse.json({
+        success: true,
+        unlocked: true,
+        deliverable: {
+          ...MOCK_DELIVERABLE,
+          isUnlocked: true,
+          status: "COMPLETED",
+        },
+      });
+    }
+
     // 1. Retrieve session directly from Stripe API to verify clearance
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
@@ -44,80 +57,86 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 2. Atomic Database Update with Idempotency Guard
-    const result = await prisma.$transaction(async (tx) => {
-      const deliverable = await tx.deliverable.findUnique({
-        where: { id: deliverableId },
-        include: {
-          project: {
-            include: { agency: true },
+    // 2. Atomic Database Update with Neon-tolerant wait/timeout configuration
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const deliverable = await tx.deliverable.findUnique({
+          where: { id: deliverableId },
+          include: {
+            project: {
+              include: { agency: true },
+            },
+            approvalRecord: true,
+            invoice: true,
           },
-          approvalRecord: true,
-          invoice: true,
-        },
-      });
+        });
 
-      if (!deliverable || deliverable.reviewToken !== token) {
-        throw new Error("Deliverable review token mismatch.");
-      }
+        if (!deliverable || deliverable.reviewToken !== token) {
+          throw new Error("Deliverable review token mismatch.");
+        }
 
-      // If already unlocked by the Stripe webhook, skip updates & duplicate email
-      if (deliverable.isUnlocked && deliverable.invoice?.status === "PAID") {
+        // If already unlocked by the Stripe webhook, skip redundant writes
+        if (deliverable.isUnlocked && deliverable.invoice?.status === "PAID") {
+          return {
+            deliverable,
+            alreadyProcessed: true,
+            meta: null,
+          };
+        }
+
+        const paymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : null;
+
+        // Mark invoice PAID
+        await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: "PAID",
+            paidAt: new Date(),
+            stripePaymentIntentId: paymentIntentId,
+          },
+        });
+
+        // Unlock deliverable and update status
+        const updatedDeliverable = await tx.deliverable.update({
+          where: { id: deliverableId },
+          data: {
+            isUnlocked: true,
+            status: "COMPLETED",
+          },
+        });
+
         return {
-          deliverable,
-          alreadyProcessed: true,
-          meta: null,
+          deliverable: updatedDeliverable,
+          alreadyProcessed: false,
+          meta: {
+            clientEmail:
+              deliverable.approvalRecord?.signerEmail ||
+              deliverable.project.clientEmail,
+            signerName:
+              deliverable.approvalRecord?.signerName ||
+              deliverable.project.clientName,
+            agencyName: deliverable.project.agency.name,
+            projectName: deliverable.project.name,
+            deliverableTitle: deliverable.title,
+            reviewToken: deliverable.reviewToken,
+            escrowAmountCents: deliverable.invoice?.amount || 0,
+            currency: deliverable.invoice?.currency || "USD",
+            signatureHash:
+              deliverable.approvalRecord?.signatureHash ||
+              "CRYPTOGRAPHIC_HASH_UNAVAILABLE",
+          },
         };
+      },
+      {
+        maxWait: 15000, // 15s to acquire a connection from Neon's serverless pooler
+        timeout: 30000, // 30s execution window for transaction completion
       }
+    );
 
-      const paymentIntentId =
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : null;
-
-      // Mark invoice PAID
-      await tx.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          status: "PAID",
-          paidAt: new Date(),
-          stripePaymentIntentId: paymentIntentId,
-        },
-      });
-
-      // Unlock deliverable and complete status
-      const updatedDeliverable = await tx.deliverable.update({
-        where: { id: deliverableId },
-        data: {
-          isUnlocked: true,
-          status: "COMPLETED",
-        },
-      });
-
-      return {
-        deliverable: updatedDeliverable,
-        alreadyProcessed: false,
-        meta: {
-          clientEmail:
-            deliverable.approvalRecord?.signerEmail ||
-            deliverable.project.clientEmail,
-          signerName:
-            deliverable.approvalRecord?.signerName ||
-            deliverable.project.clientName,
-          agencyName: deliverable.project.agency.name,
-          projectName: deliverable.project.name,
-          deliverableTitle: deliverable.title,
-          reviewToken: deliverable.reviewToken,
-          escrowAmountCents: deliverable.invoice?.amount || 0,
-          currency: deliverable.invoice?.currency || "USD",
-          signatureHash:
-            deliverable.approvalRecord?.signatureHash ||
-            "CRYPTOGRAPHIC_HASH_UNAVAILABLE",
-        },
-      };
-    });
-
-    // 3. Dispatch Settlement Receipt only if this path performed the initial unlock
+    // 3. Dispatch Settlement Receipt asynchronously only on primary execution
     if (!result.alreadyProcessed && result.meta) {
       sendPaymentReceiptAndAssetReleaseEmail(result.meta).catch((err) =>
         console.error("[Confirm Payment Background Email Error]:", err)

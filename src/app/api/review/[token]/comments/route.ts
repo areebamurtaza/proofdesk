@@ -69,6 +69,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!deliverable) {
+      if (token === "demo-token") {
+        const mockComment = {
+          id: `demo-comment-${Date.now()}`,
+          versionId,
+          authorType: "CLIENT",
+          authorName,
+          authorEmail: authorEmail && authorEmail.trim() !== "" ? authorEmail.trim() : null,
+          content,
+          xPercent,
+          yPercent,
+          isResolved: false,
+          parentId: parentId || null,
+          createdAt: new Date().toISOString(),
+        };
+        return NextResponse.json(
+          {
+            success: true,
+            comment: mockComment,
+          },
+          { status: 201 }
+        );
+      }
+
       return NextResponse.json({ error: "Deliverable not found or token expired" }, { status: 404 });
     }
 

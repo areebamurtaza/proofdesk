@@ -1,6 +1,10 @@
 // filepath: src/app/api/deliverables/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getOrCreateCurrentAgency } from "@/lib/agency";
+import { isR2Configured, generatePresignedPreviewUrl } from "@/lib/r2";
+
+export const dynamic = "force-dynamic";
 
 interface RouteParams {
   params: {
@@ -10,14 +14,33 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    let agency;
+    try {
+      agency = await getOrCreateCurrentAgency();
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized. Active agency session required." },
+        { status: 401 }
+      );
+    }
+
     const { id } = params;
 
     if (!id) {
-      return NextResponse.json({ error: "Deliverable ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Deliverable ID is required." },
+        { status: 400 }
+      );
     }
 
-    const deliverable = await prisma.deliverable.findUnique({
-      where: { id },
+    // MULTI-TENANT ISOLATION: Scoped strictly to projects owned by this agency
+    const deliverable = await prisma.deliverable.findFirst({
+      where: {
+        id,
+        project: {
+          agencyId: agency.id,
+        },
+      },
       include: {
         project: {
           select: {
@@ -45,38 +68,80 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             stripeCheckoutSessionId: true,
           },
         },
-        approvalRecord: true,
+        approvalRecord: {
+          select: {
+            id: true,
+            approvedVersion: true,
+            signerName: true,
+            signerEmail: true,
+            ipAddress: true,
+            userAgent: true,
+            legalConsent: true,
+            signatureHash: true,
+            approvedAt: true,
+          },
+        },
       },
     });
 
     if (!deliverable) {
-      return NextResponse.json({ error: "Deliverable not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Deliverable record not found or access denied." },
+        { status: 404 }
+      );
     }
 
-    // Sign ephemeral preview URLs for every version
-    const mappedVersions = deliverable.versions.map((ver) => ({
-      id: ver.id,
-      versionNumber: ver.versionNumber,
-      fileName: ver.fileName,
-      fileSize: ver.fileSize,
-      mimeType: ver.mimeType,
-      changeLog: ver.changeLog,
-      previewUrl: `/api/storage/preview?key=${encodeURIComponent(ver.previewKey)}`,
-      createdAt: ver.createdAt.toISOString(),
-      comments: ver.comments.map((c) => ({
-        id: c.id,
-        versionId: c.versionId,
-        authorType: c.authorType,
-        authorName: c.authorName,
-        authorEmail: c.authorEmail,
-        content: c.content,
-        xPercent: c.xPercent,
-        yPercent: c.yPercent,
-        isResolved: c.isResolved,
-        parentId: c.parentId,
-        createdAt: c.createdAt.toISOString(),
-      })),
-    }));
+    // Ephemeral preview URLs (300s TTL) for agency inspection
+    // When unlocked and renderable, load the clean master asset; otherwise load the preview
+    const mappedVersions = await Promise.all(
+      deliverable.versions.map(async (ver) => {
+        const isRenderableImage =
+          ver.mimeType?.startsWith("image/") ||
+          /\.(png|jpe?g|webp|svg)$/i.test(ver.fileName);
+
+        const shouldUseCleanFile = deliverable.isUnlocked && isRenderableImage;
+        const targetKey = shouldUseCleanFile ? ver.cleanFileKey : ver.previewKey;
+        const targetMime = shouldUseCleanFile ? ver.mimeType : "image/jpeg";
+
+        let previewUrl = `/api/storage/preview?key=${encodeURIComponent(targetKey)}`;
+
+        if (isR2Configured()) {
+          try {
+            previewUrl = await generatePresignedPreviewUrl({
+              key: targetKey,
+              contentType: targetMime,
+              expiresIn: 300,
+            });
+          } catch (err) {
+            console.error(`[R2 Sign Error for version ${ver.id}]:`, err);
+          }
+        }
+
+        return {
+          id: ver.id,
+          versionNumber: ver.versionNumber,
+          fileName: ver.fileName,
+          fileSize: ver.fileSize,
+          mimeType: ver.mimeType,
+          changeLog: ver.changeLog,
+          previewUrl,
+          createdAt: ver.createdAt.toISOString(),
+          comments: ver.comments.map((c) => ({
+            id: c.id,
+            versionId: c.versionId,
+            authorType: c.authorType,
+            authorName: c.authorName,
+            authorEmail: c.authorEmail,
+            content: c.content,
+            xPercent: c.xPercent,
+            yPercent: c.yPercent,
+            isResolved: c.isResolved,
+            parentId: c.parentId,
+            createdAt: c.createdAt.toISOString(),
+          })),
+        };
+      })
+    );
 
     return NextResponse.json(
       {
@@ -90,6 +155,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           isUnlocked: deliverable.isUnlocked,
           reviewToken: deliverable.reviewToken,
           createdAt: deliverable.createdAt.toISOString(),
+          updatedAt: deliverable.updatedAt.toISOString(),
           project: deliverable.project,
           invoice: deliverable.invoice
             ? {
@@ -113,7 +179,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     );
   } catch (error: unknown) {
     console.error("[Agency Fetch Deliverable Error]:", error);
-    const message = error instanceof Error ? error.message : "Failed to load deliverable.";
+    const message =
+      error instanceof Error ? error.message : "Failed to load deliverable.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

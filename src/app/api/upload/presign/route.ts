@@ -14,19 +14,18 @@ export const dynamic = "force-dynamic";
 
 const PresignUploadSchema = z.object({
   fileName: z.string().min(1, "File name cannot be empty").max(255),
-  fileType: z.enum(["PDF", "PNG", "JPG", "SVG"]),
-  mimeType: z.string().regex(/^(image\/(png|jpeg|svg\+xml)|application\/pdf)$/, {
-    message: "Unsupported MIME type. Allowed: PDF, PNG, JPG, SVG.",
-  }),
+  fileType: z.enum(["PDF", "PNG", "JPG", "SVG", "FIGMA", "ILLUSTRATOR", "CANVA", "ZIP"]),
+  mimeType: z.string().min(1, "MIME type is required"),
   fileSize: z
     .number()
     .int()
     .positive()
     .max(100 * 1024 * 1024, "File size exceeds the 100MB upload threshold"),
-  projectId: z.string().optional().nullable(),
+  previewMimeType: z.string().default("image/jpeg"),
+  previewFileSize: z.number().int().positive().optional(),
+  projectId: z.string().uuid("Invalid projectId UUID format").optional().nullable(),
   deliverableId: z.string().uuid("Invalid deliverable UUID").optional().nullable(),
   versionNumber: z.coerce.number().int().positive().default(1),
-  category: z.enum(["clean", "preview"]).default("clean"),
 });
 
 export async function POST(req: NextRequest) {
@@ -58,16 +57,17 @@ export async function POST(req: NextRequest) {
       fileName,
       mimeType,
       fileSize,
+      previewMimeType,
+      previewFileSize,
       projectId,
       deliverableId,
       versionNumber,
-      category,
     } = validation.data;
 
     let resolvedProjectId: string | null = null;
     let targetDeliverableId: string;
 
-    // SCENARIO A: Uploading a revision to an EXISTING deliverable (v2+)
+    // SCENARIO A: Ingesting revision into an EXISTING deliverable (v2+)
     if (deliverableId) {
       const existingDeliverable = await prisma.deliverable.findFirst({
         where: {
@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
 
       resolvedProjectId = existingDeliverable.projectId;
       targetDeliverableId = existingDeliverable.id;
-    } 
-    // SCENARIO B: Uploading the initial asset for a NEW deliverable (v1)
+    }
+    // SCENARIO B: Initial ingestion for a NEW deliverable (v1)
     else {
       targetDeliverableId = crypto.randomUUID();
 
@@ -148,52 +148,84 @@ export async function POST(req: NextRequest) {
       !isR2Configured() ||
       (process.env.NODE_ENV === "development" && process.env.USE_LOCAL_STORAGE === "true")
     ) {
-      const localKey = `local-${crypto.randomUUID()}-${fileName}`;
+      const localCleanKey = `clean-${crypto.randomUUID()}-${fileName}`;
+      const localPreviewKey = `preview-${crypto.randomUUID()}-preview.jpg`;
+
       return NextResponse.json(
         {
           isLocal: true,
-          uploadUrl: "/api/upload/local",
-          cleanFileKey: localKey,
-          previewKey: localKey,
-          key: localKey,
-          method: "POST",
-          headers: {
-            "Content-Type": "multipart/form-data",
+          clean: {
+            uploadUrl: `/api/upload/local?key=${encodeURIComponent(localCleanKey)}`,
+            key: localCleanKey,
           },
+          preview: {
+            uploadUrl: `/api/upload/local?key=${encodeURIComponent(localPreviewKey)}`,
+            key: localPreviewKey,
+          },
+          // Compatibility shortcuts
+          cleanFileKey: localCleanKey,
+          previewKey: localPreviewKey,
+          uploadUrl: `/api/upload/local?key=${encodeURIComponent(localCleanKey)}`,
+          method: "PUT",
           expiresIn: 300,
         },
         { status: 200 }
       );
     }
 
-    // Build the deterministic, isolated R2 storage key
-    const storageKey = buildStorageKey({
+    // Generate isolated R2 storage keys for clean and preview versions
+    const cleanStorageKey = buildStorageKey({
       agencyId: agency.id,
       projectId: resolvedProjectId,
       deliverableId: targetDeliverableId,
       versionNumber,
       fileName,
-      type: category,
+      type: "clean",
     });
 
-    const { uploadUrl } = await generatePresignedUploadUrl({
-      key: storageKey,
+    const previewFileName = `${fileName.replace(/\.[^/.]+$/, "")}-preview.jpg`;
+    const previewStorageKey = buildStorageKey({
+      agencyId: agency.id,
+      projectId: resolvedProjectId,
+      deliverableId: targetDeliverableId,
+      versionNumber,
+      fileName: previewFileName,
+      type: "preview",
+    });
+
+    // Generate independent pre-signed upload URLs (300s TTL)
+    const { uploadUrl: cleanUploadUrl } = await generatePresignedUploadUrl({
+      key: cleanStorageKey,
       contentType: mimeType,
       contentLength: fileSize,
+      expiresIn: 300,
+    });
+
+    const { uploadUrl: previewUploadUrl } = await generatePresignedUploadUrl({
+      key: previewStorageKey,
+      contentType: previewMimeType,
+      contentLength: previewFileSize,
       expiresIn: 300,
     });
 
     return NextResponse.json(
       {
         isLocal: false,
-        uploadUrl,
-        cleanFileKey: storageKey,
-        previewKey: storageKey,
-        key: storageKey,
-        method: "PUT",
-        headers: {
-          "Content-Type": mimeType,
+        clean: {
+          uploadUrl: cleanUploadUrl,
+          key: cleanStorageKey,
+          mimeType,
         },
+        preview: {
+          uploadUrl: previewUploadUrl,
+          key: previewStorageKey,
+          mimeType: previewMimeType,
+        },
+        // Direct flat mappings
+        cleanFileKey: cleanStorageKey,
+        previewKey: previewStorageKey,
+        uploadUrl: cleanUploadUrl,
+        method: "PUT",
         expiresIn: 300,
       },
       { status: 200 }
@@ -201,7 +233,7 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error("[UPLOAD_PRESIGN_ERROR]", error);
     const message =
-      error instanceof Error ? error.message : "Internal server error occurred while preparing storage ticket.";
+      error instanceof Error ? error.message : "Internal server error preparing storage ticket.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

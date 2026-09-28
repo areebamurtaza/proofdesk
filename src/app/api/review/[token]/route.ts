@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isR2Configured, generatePresignedPreviewUrl } from "@/lib/r2";
+import { MOCK_DELIVERABLE } from "@/types/review";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!deliverable) {
+      if (token === "demo-token") {
+        return NextResponse.json(
+          {
+            success: true,
+            deliverable: MOCK_DELIVERABLE,
+            ...MOCK_DELIVERABLE,
+          },
+          {
+            status: 200,
+            headers: { "Cache-Control": "no-store, max-age=0" },
+          }
+        );
+      }
+
       return NextResponse.json(
         { error: "Deliverable review vault not found or token has expired." },
         { status: 404 }
@@ -90,22 +105,47 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })
       .catch((err) => console.error("[Review Access Log Error]:", err));
 
-    // Sign temporary 60s R2 preview URLs for each version
+    // Ephemeral preview URLs (300s TTL) for canvas proofing
+    // For browser-renderable images, serve the clean master upon unlock; otherwise keep the canvas raster.
     const mappedVersions = await Promise.all(
       (deliverable.versions || []).map(async (ver) => {
+        const isRenderableImage =
+          ver.mimeType?.startsWith("image/") ||
+          /\.(png|jpe?g|webp|svg)$/i.test(ver.fileName);
+
+        // PDFs and non-image masters cannot be drawn inside an HTML <img> tag on canvas,
+        // so we must use the rasterized previewKey for canvas proofing.
+        const shouldUseCleanFile = deliverable.isUnlocked && isRenderableImage;
+        const targetKey = shouldUseCleanFile ? ver.cleanFileKey : ver.previewKey;
+        const targetMime = shouldUseCleanFile ? ver.mimeType : "image/jpeg";
+
         let previewUrl = "";
+        let fallbackPreviewUrl: string | undefined = undefined;
 
         if (isR2Configured()) {
           try {
             previewUrl = await generatePresignedPreviewUrl({
-              key: ver.previewKey,
-              expiresIn: 60,
+              key: targetKey,
+              contentType: targetMime,
+              expiresIn: 300,
             });
+
+            // Provide fallback preview if loading clean master encounters network/decoding failure
+            if (shouldUseCleanFile && ver.previewKey && ver.previewKey !== ver.cleanFileKey) {
+              fallbackPreviewUrl = await generatePresignedPreviewUrl({
+                key: ver.previewKey,
+                contentType: "image/jpeg",
+                expiresIn: 300,
+              });
+            }
           } catch (signErr) {
-            console.error(`[R2 Preview Signing Failed for ${ver.previewKey}]:`, signErr);
+            console.error(`[R2 Preview Signing Failed for ${targetKey}]:`, signErr);
           }
         } else {
-          previewUrl = `/api/upload/local?key=${encodeURIComponent(ver.previewKey)}`;
+          previewUrl = `/api/upload/local?key=${encodeURIComponent(targetKey)}`;
+          if (shouldUseCleanFile && ver.previewKey && ver.previewKey !== ver.cleanFileKey) {
+            fallbackPreviewUrl = `/api/upload/local?key=${encodeURIComponent(ver.previewKey)}`;
+          }
         }
 
         return {
@@ -118,6 +158,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           height: ver.height || 1000,
           changeLog: ver.changeLog ?? undefined,
           previewUrl,
+          fallbackPreviewUrl,
           cleanDownloadUrl: deliverable.isUnlocked
             ? `/api/review/${deliverable.reviewToken}/download`
             : null,

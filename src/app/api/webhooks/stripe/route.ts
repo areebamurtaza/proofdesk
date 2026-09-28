@@ -1,3 +1,4 @@
+// filepath: src/app/api/webhooks/stripe/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
@@ -37,64 +38,108 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 });
   }
 
-  // Handle successful escrow settlement
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const deliverableId = session.metadata?.deliverableId;
-    const invoiceId = session.metadata?.invoiceId;
+  // Support both hosted checkout sessions and Stripe direct invoice payments
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "invoice.payment_succeeded"
+  ) {
+    let deliverableId: string | undefined;
+    let invoiceId: string | undefined;
+    let paymentIntentId: string | null = null;
+    let checkoutSessionId: string | null = null;
 
-    if (!deliverableId || !invoiceId) {
-      console.error(
-        "[Stripe Webhook Error]: Missing release metadata in session.",
-        session.metadata
-      );
-      return NextResponse.json(
-        { error: "Session missing asset release metadata." },
-        { status: 400 }
-      );
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      deliverableId = session.metadata?.deliverableId;
+      invoiceId = session.metadata?.invoiceId;
+      checkoutSessionId = session.id;
+
+      if (typeof session.payment_intent === "string") {
+        paymentIntentId = session.payment_intent;
+      } else if (session.payment_intent && typeof session.payment_intent === "object") {
+        paymentIntentId = session.payment_intent.id;
+      }
+    } else {
+      const stripeInvoice = event.data.object as Stripe.Invoice;
+      deliverableId = stripeInvoice.metadata?.deliverableId;
+      invoiceId = stripeInvoice.metadata?.invoiceId;
+
+      if (typeof stripeInvoice.payment_intent === "string") {
+        paymentIntentId = stripeInvoice.payment_intent;
+      } else if (stripeInvoice.payment_intent && typeof stripeInvoice.payment_intent === "object") {
+        paymentIntentId = stripeInvoice.payment_intent.id;
+      }
+    }
+
+    // Fallback: Locate records by Stripe Checkout Session ID if metadata is absent
+    let targetInvoiceWhere: { id?: string; stripeCheckoutSessionId?: string } = {};
+
+    if (invoiceId) {
+      targetInvoiceWhere = { id: invoiceId };
+    } else if (checkoutSessionId) {
+      targetInvoiceWhere = { stripeCheckoutSessionId: checkoutSessionId };
     }
 
     try {
-      // Atomic Idempotent Transaction
       const result = await prisma.$transaction(async (tx) => {
-        const deliverable = await tx.deliverable.findUnique({
-          where: { id: deliverableId },
-          include: {
-            project: {
-              include: { agency: true },
-            },
-            approvalRecord: true,
-            invoice: true,
-          },
-        });
+        // 1. Locate the targeted deliverable
+        let deliverable = null;
 
-        if (!deliverable) {
-          throw new Error(`Deliverable ${deliverableId} not found in database.`);
+        if (deliverableId) {
+          deliverable = await tx.deliverable.findUnique({
+            where: { id: deliverableId },
+            include: {
+              project: {
+                include: { agency: true },
+              },
+              approvalRecord: true,
+              invoice: true,
+            },
+          });
+        } else if (targetInvoiceWhere.id || targetInvoiceWhere.stripeCheckoutSessionId) {
+          const inv = await tx.invoice.findFirst({
+            where: targetInvoiceWhere,
+            include: {
+              deliverable: {
+                include: {
+                  project: {
+                    include: { agency: true },
+                  },
+                  approvalRecord: true,
+                  invoice: true,
+                },
+              },
+            },
+          });
+          deliverable = inv?.deliverable || null;
         }
 
-        // Idempotency: skip if already unlocked by confirm-payment route
+        if (!deliverable) {
+          throw new Error("Deliverable record could not be resolved from webhook payload.");
+        }
+
+        // 2. Idempotency check: Exit early if already settled
         if (deliverable.isUnlocked && deliverable.invoice?.status === "PAID") {
           return { alreadyProcessed: true, meta: null };
         }
 
-        const paymentIntentId =
-          typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : null;
+        const resolvedInvoiceId = deliverable.invoice?.id || invoiceId;
 
-        // 1. Mark Invoice as PAID
-        await tx.invoice.update({
-          where: { id: invoiceId },
-          data: {
-            status: "PAID",
-            paidAt: new Date(),
-            stripePaymentIntentId: paymentIntentId,
-          },
-        });
+        // 3. Mark Invoice as PAID
+        if (resolvedInvoiceId) {
+          await tx.invoice.update({
+            where: { id: resolvedInvoiceId },
+            data: {
+              status: "PAID",
+              paidAt: new Date(),
+              ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
+            },
+          });
+        }
 
-        // 2. Unlock Deliverable & mark COMPLETED
+        // 4. Unlock Clean Assets and complete deliverable lifecycle
         await tx.deliverable.update({
-          where: { id: deliverableId },
+          where: { id: deliverable.id },
           data: {
             isUnlocked: true,
             status: "COMPLETED",
@@ -123,7 +168,7 @@ export async function POST(request: NextRequest) {
         };
       });
 
-      // Dispatch Settlement & Release Email if not previously processed
+      // 5. Send Transactional Asset Release Email (only once per settlement)
       if (!result.alreadyProcessed && result.meta) {
         sendPaymentReceiptAndAssetReleaseEmail(result.meta).catch((err) =>
           console.error("[Webhook Background Email Dispatch Error]:", err)

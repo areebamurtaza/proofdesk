@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   Activity,
   ArrowLeft,
@@ -20,6 +21,7 @@ import {
   ShieldAlert,
   Loader2,
 } from "lucide-react";
+import { AgencySidebar } from "@/components/agency/AgencySidebar";
 
 interface ActivityItem {
   id: string;
@@ -70,31 +72,31 @@ function getActionMeta(action: string) {
       return {
         label: "Vault Opened",
         icon: Eye,
-        color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+        color: "text-[#172B4D] bg-[#F8F6F1] border-[#DDD8CF]",
       };
     case "DROP_PIN":
       return {
         label: "Pin Placed",
         icon: MessageSquare,
-        color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+        color: "text-[#172B4D] bg-[#F8F6F1] border-[#D7C3A5]",
       };
     case "APPROVE_DELIVERABLE":
       return {
         label: "Legally Approved",
         icon: CheckCircle2,
-        color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+        color: "text-[#2F6B4F] bg-emerald-50 border-emerald-200",
       };
     case "DOWNLOAD_MASTER":
       return {
         label: "Master Downloaded",
         icon: Download,
-        color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+        color: "text-purple-700 bg-purple-50 border-purple-200",
       };
     default:
       return {
         label: action.replace(/_/g, " "),
         icon: Activity,
-        color: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
+        color: "text-[#667085] bg-[#F8F6F1] border-[#DDD8CF]",
       };
   }
 }
@@ -132,122 +134,148 @@ export default function AgencyActivityPage() {
   }, [fetchLogs]);
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 p-8 space-y-8 select-none">
-      {/* Top Navigation & Header */}
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight text-white">Client Audit &amp; Telemetry</h1>
-              <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                Zero-Auth Audit Trail
-              </span>
+    <div className="min-h-screen flex bg-[#F8F6F1] text-[#171A1F] font-sans antialiased">
+      {/* 1. DEEP NAVY SIDEBAR (#0B1628) - FIXED POSITION & LENGTH */}
+      <AgencySidebar currentPath="/activity" />
+
+      {/* 2. LIGHT WORKSPACE CANVAS (#F8F6F1) */}
+      <div className="flex-1 flex flex-col min-w-0 md:ml-64 min-h-screen">
+        {/* Workspace Top Header */}
+        <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="p-2 rounded-xl bg-white hover:bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] transition-colors shadow-xs md:hidden"
+              title="Return to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4 text-[#172B4D]" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-lg font-serif font-bold tracking-tight text-[#171A1F]">
+                  Client Audit &amp; Telemetry
+                </h1>
+                <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#172B4D]/10 text-[#172B4D] border border-[#172B4D]/20">
+                  Audit Trail
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
-              Cryptographic log of all client link opens, pin drops, approvals, and clean downloads.
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchLogs}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-white text-xs font-semibold transition-colors disabled:opacity-50 shadow-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-[#D7C3A5] ${isLoading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh Feed</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
+          <div className="space-y-1">
+            <h2 className="text-xl font-serif font-bold text-[#171A1F]">Cryptographic Telemetry Ledger</h2>
+            <p className="text-xs sm:text-sm text-[#667085]">
+              Real-time audit records of client token views, pin drops, reviews, and unlocked deliverable downloads.
             </p>
           </div>
-        </div>
 
-        <button
-          onClick={fetchLogs}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-          <span>Refresh Feed</span>
-        </button>
-      </div>
-
-      <div className="max-w-7xl mx-auto space-y-6">
+          <div className="space-y-6">
         {/* Metric Summary Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-1">
-            <div className="flex items-center justify-between text-zinc-500 text-xs font-mono">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-4"
+        >
+          <div className="p-5 rounded-2xl bg-white border border-[#DDD8CF] accent-border-top-navy space-y-1 shadow-xs">
+            <div className="flex items-center justify-between text-[#667085] text-xs font-mono">
               <span>Vault Opens</span>
-              <Eye className="w-4 h-4 text-indigo-400" />
+              <Eye className="w-4 h-4 text-[#172B4D]" />
             </div>
-            <p className="text-2xl font-bold text-white font-mono">{stats.totalViews}</p>
+            <p className="text-2xl font-bold font-serif text-[#171A1F]">{stats.totalViews}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-1">
-            <div className="flex items-center justify-between text-zinc-500 text-xs font-mono">
+          <div className="p-5 rounded-2xl bg-white border border-[#DDD8CF] accent-border-top-sand space-y-1 shadow-xs">
+            <div className="flex items-center justify-between text-[#667085] text-xs font-mono">
               <span>Feedback Pins</span>
-              <MessageSquare className="w-4 h-4 text-amber-400" />
+              <MessageSquare className="w-4 h-4 text-[#172B4D]" />
             </div>
-            <p className="text-2xl font-bold text-white font-mono">{stats.totalPins}</p>
+            <p className="text-2xl font-bold font-serif text-[#172B4D]">{stats.totalPins}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-1">
-            <div className="flex items-center justify-between text-zinc-500 text-xs font-mono">
+          <div className="p-5 rounded-2xl bg-white border border-[#DDD8CF] shadow-xs space-y-1 border-t-2 border-t-[#2F6B4F]">
+            <div className="flex items-center justify-between text-[#667085] text-xs font-mono">
               <span>Legal Sign-offs</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-[#2F6B4F]" />
             </div>
-            <p className="text-2xl font-bold text-white font-mono">{stats.totalApprovals}</p>
+            <p className="text-2xl font-bold font-serif text-[#2F6B4F]">{stats.totalApprovals}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-1">
-            <div className="flex items-center justify-between text-zinc-500 text-xs font-mono">
+          <div className="p-5 rounded-2xl bg-white border border-[#DDD8CF] accent-border-top-navy space-y-1 shadow-xs">
+            <div className="flex items-center justify-between text-[#667085] text-xs font-mono">
               <span>Master Downloads</span>
-              <Download className="w-4 h-4 text-cyan-400" />
+              <Download className="w-4 h-4 text-[#172B4D]" />
             </div>
-            <p className="text-2xl font-bold text-white font-mono">{stats.totalDownloads}</p>
+            <p className="text-2xl font-bold font-serif text-[#171A1F]">{stats.totalDownloads}</p>
           </div>
+        </motion.div>
+
+        {/* Action Filter Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 p-2 rounded-2xl bg-white border border-[#DDD8CF] shadow-xs">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+            <Filter className="w-3.5 h-3.5 text-[#667085] ml-2 mr-1" />
+            {[
+              { key: "ALL", label: "All Events" },
+              { key: "VIEW_PORTAL", label: "Vault Opens" },
+              { key: "DROP_PIN", label: "Pins Placed" },
+              { key: "APPROVE_DELIVERABLE", label: "Legal Approvals" },
+              { key: "DOWNLOAD_MASTER", label: "Master Downloads" },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setActionFilter(key)}
+                className={`px-3 py-1.5 rounded-xl transition-all ${
+                  actionFilter === key
+                    ? "bg-[#172B4D] text-[#F8F6F1] font-semibold shadow-xs"
+                    : "text-[#667085] hover:text-[#171A1F] hover:bg-[#F8F6F1]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <span className="text-[11px] font-mono text-[#667085] mr-3">
+            {logs.length} logged event(s)
+          </span>
         </div>
-
-       {/* Action Filter Bar */}
-<div className="flex flex-wrap items-center justify-between gap-4 p-2 rounded-2xl bg-zinc-900/30 border border-zinc-800/80">
-  <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
-    <Filter className="w-3.5 h-3.5 text-zinc-500 ml-2 mr-1" />
-    {[
-      { key: "ALL", label: "All Events" },
-      { key: "VIEW_PORTAL", label: "Vault Opens" },
-      { key: "DROP_PIN", label: "Pins Placed" },
-      { key: "APPROVE_DELIVERABLE", label: "Legal Approvals" },
-      { key: "DOWNLOAD_MASTER", label: "Master Downloads" },
-    ].map(({ key, label }) => (
-      <button
-        key={key}
-        onClick={() => setActionFilter(key)}
-        className={`px-3 py-1.5 rounded-xl transition-all ${
-          actionFilter === key
-            ? "bg-zinc-800 text-white font-semibold shadow-sm"
-            : "text-zinc-500 hover:text-zinc-300"
-        }`}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-
-  <span className="text-[11px] font-mono text-zinc-500 mr-3">
-    {logs.length} logged event(s)
-  </span>
-</div>
 
         {/* Activity Stream Table */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/20 backdrop-blur-md overflow-hidden shadow-xl">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="rounded-2xl border border-[#DDD8CF] bg-white overflow-hidden shadow-xs"
+        >
           {isLoading ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3 text-zinc-500">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-              <p className="text-xs font-mono">Querying audit events from PostgreSQL...</p>
+            <div className="h-64 flex flex-col items-center justify-center gap-3 text-[#667085]">
+              <Loader2 className="w-7 h-7 animate-spin text-[#172B4D]" />
+              <p className="text-xs font-mono tracking-wider">Querying audit events from PostgreSQL...</p>
             </div>
           ) : logs.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-2 text-zinc-500 text-center p-6">
-              <ShieldAlert className="w-8 h-8 text-zinc-700" />
-              <p className="text-xs font-medium text-zinc-400">No telemetry records match this filter</p>
-              <p className="text-[11px] text-zinc-600">
+            <div className="h-64 flex flex-col items-center justify-center gap-2 text-[#667085] text-center p-6">
+              <ShieldAlert className="w-8 h-8 text-[#DDD8CF]" />
+              <p className="text-xs font-semibold text-[#171A1F]">No telemetry records match this filter</p>
+              <p className="text-[11px] text-[#667085]">
                 Client link opens and interactions will log here automatically.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-[#DDD8CF]">
               {logs.map((log) => {
                 const meta = getActionMeta(log.action);
                 const Icon = meta.icon;
@@ -257,7 +285,7 @@ export default function AgencyActivityPage() {
                 return (
                   <div
                     key={log.id}
-                    className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-zinc-850/30 transition-colors"
+                    className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-[#F8F6F1]/60 transition-colors"
                   >
                     {/* Left: Event Details */}
                     <div className="flex items-start gap-3.5">
@@ -266,42 +294,42 @@ export default function AgencyActivityPage() {
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-white">{meta.label}</span>
-                          <span className="text-zinc-600">&bull;</span>
+                          <span className="text-xs font-semibold text-[#171A1F]">{meta.label}</span>
+                          <span className="text-[#667085]">&bull;</span>
                           <Link
                             href={`/deliverables/${log.deliverable.id}`}
-                            className="text-xs text-indigo-400 hover:underline font-medium"
+                            className="text-xs text-[#172B4D] hover:underline font-semibold"
                           >
                             {log.deliverable.title}
                           </Link>
                         </div>
-                        <p className="text-[11px] text-zinc-400">
-                          Project: <span className="text-zinc-300">{log.deliverable.projectName}</span> &bull;
+                        <p className="text-[11px] text-[#667085]">
+                          Project: <span className="text-[#171A1F] font-medium">{log.deliverable.projectName}</span> &bull;
                           Client: {log.deliverable.clientName} ({log.deliverable.clientEmail})
                         </p>
                       </div>
                     </div>
 
                     {/* Right: Technical Device & Network Footprint */}
-                    <div className="flex items-center gap-4 text-[11px] font-mono text-zinc-400 self-end sm:self-center">
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
+                    <div className="flex items-center gap-3 text-[11px] font-mono text-[#667085] self-end sm:self-center">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF]">
                         {device.isMobile ? (
-                          <Smartphone className="w-3.5 h-3.5 text-zinc-500" />
+                          <Smartphone className="w-3.5 h-3.5 text-[#667085]" />
                         ) : (
-                          <Laptop className="w-3.5 h-3.5 text-zinc-500" />
+                          <Laptop className="w-3.5 h-3.5 text-[#667085]" />
                         )}
                         <span>
                           {device.browser} / {device.os}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
-                        <Globe className="w-3.5 h-3.5 text-zinc-500" />
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF]">
+                        <Globe className="w-3.5 h-3.5 text-[#667085]" />
                         <span>{log.ipAddress}</span>
                       </div>
 
-                      <div className="flex items-center gap-1 text-zinc-500 text-[10px]">
-                        <Clock className="w-3 h-3" />
+                      <div className="flex items-center gap-1 text-[#667085] text-[10px]">
+                        <Clock className="w-3 h-3 text-[#172B4D]" />
                         <span>
                           {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
@@ -311,7 +339,7 @@ export default function AgencyActivityPage() {
                         href={`/review/${log.deliverable.reviewToken}`}
                         target="_blank"
                         title="Open Token View"
-                        className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                        className="p-1.5 rounded-lg text-[#667085] hover:text-[#171A1F] hover:bg-[#F8F6F1] transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Link>
@@ -321,8 +349,10 @@ export default function AgencyActivityPage() {
               })}
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </main>
+  </div>
+</div>
   );
 }

@@ -24,8 +24,9 @@ export function PinMarker({
   onClick,
 }: PinMarkerProps) {
   const isResolved = comment.isResolved;
-  const fillColor = isResolved ? "#10b981" : isSelected ? "#4f46e5" : "#f59e0b";
-  const strokeColor = "#ffffff";
+  const fillColor = isResolved ? "#2F6B4F" : isSelected ? "#D7C3A5" : "#172B4D";
+  const strokeColor = isSelected ? "#0B1628" : "#ffffff";
+  const textColor = isResolved ? "#ffffff" : isSelected ? "#0B1628" : "#ffffff";
 
   // Prevent event from bubbling up to Stage and dropping a new pin
   const handleClick = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -43,7 +44,7 @@ export function PinMarker({
     >
       {/* Outer Pulse / Selection Halo */}
       {isSelected && (
-        <Circle radius={20} fill="#4f46e5" opacity={0.3} listening={false} />
+        <Circle radius={20} fill="#D7C3A5" opacity={0.4} listening={false} />
       )}
 
       {/* Main Pin Body */}
@@ -64,10 +65,10 @@ export function PinMarker({
         fontSize={11}
         fontFamily="sans-serif"
         fontStyle="bold"
-        fill="#ffffff"
+        fill={textColor}
         align="center"
         verticalAlign="middle"
-        offsetX={5}
+        offsetX={index + 1 >= 10 ? 6 : 4}
         offsetY={5}
         listening={false}
       />

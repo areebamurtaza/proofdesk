@@ -1,7 +1,7 @@
 // filepath: src/app/(client)/review/[token]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ReviewHeader } from "@/components/review/ReviewHeader";
@@ -46,6 +46,7 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ xPercent: number; yPercent: number } | null>(null);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState<boolean>(false);
+  const paymentVerifiedRef = useRef<string | null>(null);
 
   // Load deliverable state with resilient payload extraction
   const loadDeliverable = useCallback(async () => {
@@ -70,30 +71,31 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
         throw new Error("No reviewable asset versions exist for this deliverable.");
       }
 
-      const sanitizedVersions: VersionItem[] = rawVersions.map((v: any) => ({
-        id: v.id,
+      const sanitizedVersions: VersionItem[] = rawVersions.map((v: Record<string, unknown>) => ({
+        id: String(v.id || ""),
         versionNumber: typeof v.versionNumber === "number" ? v.versionNumber : 1,
-        fileName: v.fileName || "master-file",
-        fileSize: v.fileSize || 0,
-        mimeType: v.mimeType || "image/png",
-        previewUrl: v.previewUrl || "",
-        cleanDownloadUrl: v.cleanDownloadUrl || null,
-        width: v.width || 1600,
-        height: v.height || 1000,
-        changeLog: v.changeLog ?? undefined,
-        createdAt: v.createdAt || new Date().toISOString(),
+        fileName: typeof v.fileName === "string" ? v.fileName : "master-file",
+        fileSize: typeof v.fileSize === "number" ? v.fileSize : 0,
+        mimeType: typeof v.mimeType === "string" ? v.mimeType : "image/png",
+        previewUrl: typeof v.previewUrl === "string" ? v.previewUrl : "",
+        fallbackPreviewUrl: typeof v.fallbackPreviewUrl === "string" ? v.fallbackPreviewUrl : undefined,
+        cleanDownloadUrl: typeof v.cleanDownloadUrl === "string" ? v.cleanDownloadUrl : null,
+        width: typeof v.width === "number" ? v.width : 1600,
+        height: typeof v.height === "number" ? v.height : 1000,
+        changeLog: typeof v.changeLog === "string" ? v.changeLog : undefined,
+        createdAt: typeof v.createdAt === "string" ? v.createdAt : new Date().toISOString(),
         comments: Array.isArray(v.comments)
-          ? v.comments.map((c: any) => ({
-              id: c.id,
-              versionId: c.versionId || v.id,
-              authorType: c.authorType || "CLIENT",
-              authorName: c.authorName || "Reviewer",
-              authorEmail: c.authorEmail || undefined,
-              content: c.content || "",
+          ? v.comments.map((c: Record<string, unknown>) => ({
+              id: String(c.id || ""),
+              versionId: String(c.versionId || v.id || ""),
+              authorType: (c.authorType as "CLIENT" | "AGENCY") || "CLIENT",
+              authorName: typeof c.authorName === "string" ? c.authorName : "Reviewer",
+              authorEmail: typeof c.authorEmail === "string" ? c.authorEmail : undefined,
+              content: typeof c.content === "string" ? c.content : "",
               xPercent: typeof c.xPercent === "number" ? c.xPercent : 0,
               yPercent: typeof c.yPercent === "number" ? c.yPercent : 0,
               isResolved: Boolean(c.isResolved),
-              createdAt: c.createdAt || new Date().toISOString(),
+              createdAt: typeof c.createdAt === "string" ? c.createdAt : new Date().toISOString(),
             }))
           : [],
       }));
@@ -146,9 +148,14 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
     if (!sessionId) {
-      loadDeliverable();
+      if (!paymentVerifiedRef.current) {
+        loadDeliverable();
+      }
       return;
     }
+
+    if (paymentVerifiedRef.current === sessionId) return;
+    paymentVerifiedRef.current = sessionId;
 
     const confirmPayment = async () => {
       try {
@@ -202,9 +209,9 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-300 gap-3 select-none">
-        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-        <p className="text-xs font-medium tracking-wide">
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8F6F1] text-[#667085] gap-3 select-none">
+        <Loader2 className="w-7 h-7 animate-spin text-[#172B4D]" />
+        <p className="text-xs font-mono text-[#667085] tracking-wide uppercase">
           Syncing proofing vault &amp; escrow status...
         </p>
       </div>
@@ -213,18 +220,18 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
 
   if (errorMessage || !deliverable || !activeVersion) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 p-6 select-none">
-        <div className="max-w-md w-full p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 text-center space-y-4">
-          <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8F6F1] text-[#171A1F] p-6 select-none font-sans">
+        <div className="max-w-md w-full p-6 rounded-2xl bg-white border border-[#DDD8CF] text-center space-y-4 accent-border-top-navy shadow-xl">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200">
             <AlertCircle className="w-5 h-5" />
           </div>
-          <h2 className="text-sm font-semibold text-zinc-100">Deliverable Unavailable</h2>
-          <p className="text-xs text-zinc-400 leading-relaxed">
+          <h2 className="text-sm font-serif font-bold text-[#171A1F] tracking-tight">Deliverable Unavailable</h2>
+          <p className="text-xs text-[#667085] leading-relaxed">
             {errorMessage || "The review link may have expired or is invalid."}
           </p>
           <button
             onClick={loadDeliverable}
-            className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-white transition-colors"
+            className="px-4 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-[#F8F6F1] text-xs font-semibold transition-all shadow-sm"
           >
             Retry Connection
           </button>
@@ -395,18 +402,38 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
     }
   };
 
- 
-const handleDownloadCleanFile = () => {
-  if (!deliverable.isUnlocked) {
-    alert("HTTP 403 Forbidden: Payment Required to access unwatermarked source.");
-    return;
-  }
-  const versionParam = activeVersion ? `?version=${activeVersion.versionNumber}` : "";
-  window.location.href = `/api/review/${deliverable.reviewToken}/download${versionParam}`;
-};
+  const handleDownloadCleanFile = async () => {
+    if (!deliverable.isUnlocked) {
+      alert("Payment required: Final clean master assets remain locked until escrow settles.");
+      return;
+    }
+
+    try {
+      const versionParam = activeVersion ? `?version=${activeVersion.versionNumber}&format=json` : "?format=json";
+      const res = await fetch(`/api/review/${deliverable.reviewToken}/download${versionParam}`);
+
+      if (!res.ok) {
+        const errorPayload = await res.json().catch(() => ({}));
+        throw new Error(errorPayload.error || "Failed to authorize master asset download.");
+      }
+
+      const { downloadUrl } = await res.json();
+      if (downloadUrl) {
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.setAttribute("download", "");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Download failed.";
+      alert(msg);
+    }
+  };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden select-none">
+    <div className="h-screen w-screen flex flex-col bg-[#F8F6F1] text-[#171A1F] overflow-hidden select-none font-sans">
       <ReviewHeader
         deliverable={deliverable}
         activeVersion={activeVersion}
@@ -417,7 +444,6 @@ const handleDownloadCleanFile = () => {
           setIsPinModeActive(false);
           setPendingPin(null);
 
-          // If activating compare mode, ensure compareVersion is an alternate version
           if (next && deliverable && activeVersion) {
             if (!compareVersion || compareVersion.id === activeVersion.id) {
               const predecessor = deliverable.versions
@@ -435,7 +461,6 @@ const handleDownloadCleanFile = () => {
           setSelectedCommentId(null);
           setPendingPin(null);
 
-          // Automatically default compareVersion candidate relative to new active version
           if (deliverable) {
             const predecessor = deliverable.versions
               .filter((cand) => cand.id !== v.id)
@@ -451,23 +476,23 @@ const handleDownloadCleanFile = () => {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 relative bg-zinc-900/40 flex flex-col items-center justify-center overflow-hidden">
-          {/* Standard HUD (Hidden when in Compare Mode to allow the Version Compare HUD to take precedence) */}
+        <main className="flex-1 relative bg-[#F5F3EE] flex flex-col items-center justify-center overflow-hidden">
+          {/* Standard HUD */}
           {!isCompareMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-zinc-900/90 border border-zinc-800 backdrop-blur-md shadow-2xl">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-white/95 border border-[#DDD8CF] backdrop-blur-md shadow-xl text-xs">
               {deliverable.isUnlocked ? (
                 <>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Approved &amp; Unlocked</span>
                   </div>
-                  <div className="h-4 w-px bg-zinc-800" />
+                  <div className="h-4 w-px bg-[#DDD8CF]" />
                   <button
                     onClick={() => setShowPinsInPaidMode(!showPinsInPaidMode)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       showPinsInPaidMode
-                        ? "bg-zinc-800 text-zinc-100"
-                        : "text-zinc-400 hover:text-zinc-200"
+                        ? "bg-[#F8F6F1] text-[#172B4D]"
+                        : "text-[#667085] hover:text-[#171A1F]"
                     }`}
                   >
                     {showPinsInPaidMode ? (
@@ -491,8 +516,8 @@ const handleDownloadCleanFile = () => {
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                       !isPinModeActive
-                        ? "bg-zinc-800 text-zinc-100 shadow-sm"
-                        : "text-zinc-400 hover:text-zinc-200"
+                        ? "bg-[#F8F6F1] text-[#171A1F] shadow-xs font-bold"
+                        : "text-[#667085] hover:text-[#171A1F]"
                     }`}
                   >
                     <MousePointer className="w-3.5 h-3.5" />
@@ -500,17 +525,18 @@ const handleDownloadCleanFile = () => {
                   </button>
                   <button
                     onClick={() => {
-                      setIsPinModeActive(true);
+                      setIsPinModeActive(!isPinModeActive);
                       setSelectedCommentId(null);
+                      if (isPinModeActive) setPendingPin(null);
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       isPinModeActive
-                        ? "bg-emerald-500 text-black font-semibold shadow-sm"
-                        : "text-zinc-400 hover:text-zinc-200"
+                        ? "bg-[#172B4D] text-[#F8F6F1] shadow-xs ring-1 ring-[#D7C3A5]"
+                        : "text-[#667085] hover:text-[#171A1F] hover:bg-[#F8F6F1]"
                     }`}
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Drop Pin ({(activeVersion.comments || []).length})</span>
+                    <span>{isPinModeActive ? "Click canvas to place" : `Drop Pin (${(activeVersion.comments || []).length})`}</span>
                   </button>
                 </>
               )}

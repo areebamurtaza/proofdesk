@@ -43,7 +43,12 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           versions: {
-            where: { previewKey },
+            where: {
+              OR: [
+                { previewKey },
+                { cleanFileKey: previewKey },
+              ],
+            },
             select: { id: true },
           },
         },
@@ -61,7 +66,10 @@ export async function GET(req: NextRequest) {
         if (agency) {
           const versionOwnership = await prisma.version.findFirst({
             where: {
-              previewKey,
+              OR: [
+                { previewKey },
+                { cleanFileKey: previewKey },
+              ],
               deliverable: {
                 project: {
                   agencyId: agency.id,
@@ -94,7 +102,7 @@ export async function GET(req: NextRequest) {
     ) {
       return NextResponse.json(
         {
-          url: `/api/storage/local-mock?key=${encodeURIComponent(previewKey)}`,
+          url: `/api/upload/local?key=${encodeURIComponent(previewKey)}`,
           expiresIn: 60,
         },
         {

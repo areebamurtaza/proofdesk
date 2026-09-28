@@ -11,7 +11,7 @@ const createDeliverableSchema = z
   .object({
     title: z.string().trim().min(2, "Title must be at least 2 characters").max(120),
     description: z.string().trim().max(500).optional().nullable(),
-    fileType: z.enum(["PDF", "PNG", "JPG", "SVG"]),
+    fileType: z.enum(["PDF", "PNG", "JPG", "SVG", "FIGMA", "ILLUSTRATOR", "CANVA", "ZIP"]),
     fileName: z.string().min(1, "File name is required"),
     fileSize: z.number().int().positive("File size must be positive"),
     mimeType: z.string().min(1, "MIME type is required"),

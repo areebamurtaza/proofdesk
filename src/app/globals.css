@@ -3,21 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #F8F6F1;
+  --foreground: #171A1F;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── ProofDesk Navy & Warm Sand Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F8F6F1;
+}
+::-webkit-scrollbar-thumb {
+  background: #DDD8CF;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D7C3A5;
+}
+
+/* ── ProofDesk Accent Utilities ── */
+.accent-border-top-navy {
+  border-top: 3px solid #172B4D;
+}
+.accent-border-top-sand {
+  border-top: 3px solid #D7C3A5;
+}
+.accent-border-left-sand {
+  border-left: 3px solid #D7C3A5;
+}
+.accent-border-bottom-navy {
+  border-bottom: 3px solid #172B4D;
+}
+
+.navy-gradient {
+  background: linear-gradient(135deg, #172B4D 0%, #0B1628 100%);
+}
+
+.deep-navy-surface {
+  background-color: #0B1628;
+  color: #F8F6F1;
+}
+
+.sand-badge {
+  background-color: rgba(215, 195, 165, 0.18);
+  color: #172B4D;
+  border: 1px solid rgba(215, 195, 165, 0.45);
+}
+
+.ivory-card {
+  background: #FFFFFF;
+  border: 1px solid #DDD8CF;
+  box-shadow: 0 2px 12px -2px rgba(11, 22, 40, 0.04);
 }
 
 @layer utilities {

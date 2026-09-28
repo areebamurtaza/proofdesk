@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma";
 async function resolveClerkClient() {
   if (typeof clerkClient === "function") {
     // Clerk v5+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return await (clerkClient as unknown as () => Promise<any>)();
   }
   // Clerk v4
@@ -27,12 +28,19 @@ export async function getOrCreateCurrentAgency() {
     throw new Error("UNAUTHORIZED: No active authentication session found.");
   }
 
-  const client = await resolveClerkClient();
-
   // ============================================================================
   // CASE 1: Active Clerk B2B Organization Selected (e.g., evomultisales.org)
   // ============================================================================
   if (orgId) {
+    // Fast-path: Return cached agency tenant if already provisioned
+    const existingAgency = await prisma.agency.findUnique({
+      where: { clerkOrgId: orgId },
+    });
+    if (existingAgency) {
+      return existingAgency;
+    }
+
+    const client = await resolveClerkClient();
     let orgName = "Agency Workspace";
     let slug = orgSlug || `org-${orgId.toLowerCase()}`;
 
@@ -75,6 +83,16 @@ export async function getOrCreateCurrentAgency() {
   // CASE 2: Personal Studio Fallback (No Clerk Organization Selected)
   // ============================================================================
   const personalOrgId = `user_${userId}`;
+
+  // Fast-path: Return personal agency if already provisioned
+  const existingPersonalAgency = await prisma.agency.findUnique({
+    where: { clerkOrgId: personalOrgId },
+  });
+  if (existingPersonalAgency) {
+    return existingPersonalAgency;
+  }
+
+  const client = await resolveClerkClient();
   let personalName = "Personal Studio";
 
   try {

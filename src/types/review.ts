@@ -1,6 +1,14 @@
 // filepath: src/types/review.ts
 
-export type FileType = "PDF" | "PNG" | "JPG" | "SVG";
+export type FileType =
+  | "PDF"
+  | "PNG"
+  | "JPG"
+  | "SVG"
+  | "FIGMA"
+  | "ILLUSTRATOR"
+  | "CANVA"
+  | "ZIP";
 
 export type DeliverableStatus =
   | "DRAFT"
@@ -32,6 +40,7 @@ export interface VersionItem {
   fileSize: number;
   mimeType: string;
   previewUrl: string;
+  fallbackPreviewUrl?: string;
   cleanDownloadUrl?: string | null;
   width: number;
   height: number;

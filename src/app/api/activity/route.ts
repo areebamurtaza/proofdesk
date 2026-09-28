@@ -66,12 +66,31 @@ export async function GET(req: NextRequest) {
       },
     }));
 
-    // Aggregate summary metrics
+    // Compute aggregate summary metrics across ALL actions for this agency
+    const aggregateCounts = await prisma.reviewAccessLog.groupBy({
+      by: ["action"],
+      where: {
+        deliverable: {
+          project: {
+            agencyId: agency.id,
+          },
+        },
+      },
+      _count: {
+        action: true,
+      },
+    });
+
+    const statsMap: Record<string, number> = {};
+    for (const item of aggregateCounts) {
+      statsMap[item.action] = item._count.action;
+    }
+
     const stats = {
-      totalViews: logs.filter((l) => l.action === "VIEW_PORTAL").length,
-      totalPins: logs.filter((l) => l.action === "DROP_PIN").length,
-      totalDownloads: logs.filter((l) => l.action === "DOWNLOAD_MASTER").length,
-      totalApprovals: logs.filter((l) => l.action === "APPROVE_DELIVERABLE").length,
+      totalViews: statsMap["VIEW_PORTAL"] || 0,
+      totalPins: statsMap["DROP_PIN"] || 0,
+      totalDownloads: statsMap["DOWNLOAD_MASTER"] || 0,
+      totalApprovals: statsMap["APPROVE_DELIVERABLE"] || 0,
     };
 
     return NextResponse.json(

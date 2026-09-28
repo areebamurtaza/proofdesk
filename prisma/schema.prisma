@@ -39,6 +39,10 @@ enum FileType {
   PNG
   JPG
   SVG
+  FIGMA
+  ILLUSTRATOR
+  CANVA
+  ZIP
 }
 
 enum CommentAuthorType {

@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
+import { motion } from "framer-motion";
+import { AgencySidebar } from "@/components/agency/AgencySidebar";
 import { DeliverableUploadModal } from "@/components/agency/DeliverableUploadModal";
 import { VersionUploadModal } from "@/components/agency/VersionUploadModal";
 import {
-  ShieldCheck,
   Lock,
   Unlock,
   Plus,
@@ -21,6 +21,8 @@ import {
   FileCheck,
   Eye,
   Activity,
+  FolderGit2,
+  CheckCircle2,
 } from "lucide-react";
 
 interface DashboardDeliverable {
@@ -49,24 +51,8 @@ interface DashboardDeliverable {
   signerName: string | null;
 }
 
-interface DashboardMetrics {
-  totalDeliverables: number;
-  activeReviewCount: number;
-  completedCount: number;
-  escrowPendingCents: number;
-  clearedRevenueCents: number;
-}
-
 export default function AgencyDashboardPage() {
   const [deliverables, setDeliverables] = useState<DashboardDeliverable[]>([]);
-  const [metrics, setMetrics] = useState<DashboardMetrics>({
-    totalDeliverables: 0,
-    activeReviewCount: 0,
-    completedCount: 0,
-    escrowPendingCents: 0,
-    clearedRevenueCents: 0,
-  });
-
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
@@ -87,13 +73,12 @@ export default function AgencyDashboardPage() {
 
       const res = await fetch("/api/deliverables", { cache: "no-store" });
       if (!res.ok) {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to load dashboard deliverables.");
       }
 
       const data = await res.json();
       setDeliverables(data.deliverables || []);
-      setMetrics(data.metrics);
     } catch (err: unknown) {
       setErrorMessage(
         err instanceof Error ? err.message : "Failed to load database records."
@@ -122,282 +107,334 @@ export default function AgencyDashboardPage() {
     }).format(cents / 100);
   };
 
+  // Derived metric counters for the 4 overview boxes
+  const inReviewCount = deliverables.filter((d) => d.status === "IN_REVIEW").length;
+  const revisionsCount = deliverables.filter((d) => d.status === "CHANGES_REQUESTED").length;
+  const approvedCount = deliverables.filter((d) => d.status === "APPROVED" || d.isUnlocked).length;
+
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 p-8 space-y-8 select-none">
-      {/* Top Header */}
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-white">Agency Deliverables</h1>
-            <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              Studio Monolith
-            </span>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Escrow-backed proofing, versioning, and client release protocol.
-          </p>
-        </div>
+    <div className="min-h-screen flex bg-[#F8F6F1] text-[#171A1F] font-sans antialiased">
+      {/* 1. DEEP NAVY SIDEBAR (#0B1628) - FIXED POSITION & LENGTH */}
+      <AgencySidebar currentPath="/dashboard" deliverablesCount={deliverables.length} />
 
-        {/* Agency Auth & Workspace Controls */}
-        <div className="flex items-center gap-3">
-          <OrganizationSwitcher
-            appearance={{
-              elements: {
-                rootBox: "bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1",
-                organizationPreviewTextContainer: "text-xs text-zinc-300 font-medium",
-                organizationSwitcherTriggerIcon: "text-zinc-500",
-              },
-            }}
-          />
-
-          {/* Audit Trail Navigation Button */}
-          <Link
-            href="/activity"
-            className="px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-2 transition-all active:scale-[0.98]"
-          >
-            <Activity className="w-4 h-4 text-indigo-400" />
-            <span>Audit Trail</span>
-          </Link>
-
-          {/* Upload Deliverable Button */}
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold flex items-center gap-2 shadow-lg shadow-emerald-950/40 transition-all active:scale-[0.98]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Upload Deliverable</span>
-          </button>
-
-          <UserButton
-            appearance={{
-              elements: {
-                userButtonAvatarBox: "w-8 h-8 border border-zinc-800",
-              },
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Live Financial Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-2xl bg-zinc-900/50 border border-zinc-800 space-y-2">
-            <div className="flex items-center justify-between text-zinc-400">
-              <span className="text-xs font-medium">Locked in Escrow</span>
-              <Lock className="w-4 h-4 text-amber-400" />
-            </div>
-            <p className="text-2xl font-bold text-white tracking-tight">
-              {formatCurrency(metrics.escrowPendingCents)}
-            </p>
-            <p className="text-[11px] text-zinc-500">
-              {metrics.activeReviewCount} deliverable(s) in active client review
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-zinc-900/50 border border-zinc-800 space-y-2">
-            <div className="flex items-center justify-between text-zinc-400">
-              <span className="text-xs font-medium">Settled Revenue</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-400 tracking-tight">
-              {formatCurrency(metrics.clearedRevenueCents)}
-            </p>
-            <p className="text-[11px] text-zinc-500">
-              {metrics.completedCount} project(s) paid and unlocked via Stripe
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-zinc-900/50 border border-zinc-800 space-y-2">
-            <div className="flex items-center justify-between text-zinc-400">
-              <span className="text-xs font-medium">Total Volume</span>
-              <Layers className="w-4 h-4 text-zinc-400" />
-            </div>
-            <p className="text-2xl font-bold text-zinc-200 tracking-tight">
-              {metrics.totalDeliverables}
-            </p>
-            <p className="text-[11px] text-zinc-500">Persistent PostgreSQL records</p>
-          </div>
-        </div>
-
-        {/* Database Deliverables Table */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 backdrop-blur-md overflow-hidden shadow-xl">
-          <div className="px-6 py-4 border-b border-zinc-800/80 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">Active Deliverable Vault</h2>
-            <span className="text-xs text-zinc-500 font-mono">
-              {deliverables.length} Deliverables
+      {/* 2. LIGHT WORKSPACE CANVAS (#F8F6F1) */}
+      <div className="flex-1 flex flex-col min-w-0 md:ml-64 min-h-screen">
+        {/* Workspace Top Header */}
+        <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-serif font-bold text-[#171A1F] tracking-tight">
+              Agency Deliverables
+            </h1>
+            <span className="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#172B4D]/10 text-[#172B4D] border border-[#172B4D]/20">
+              Workspace Live
             </span>
           </div>
 
-          {isLoading ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3 text-zinc-400">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-              <p className="text-xs font-medium">Loading live database records...</p>
-            </div>
-          ) : errorMessage ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3 text-rose-400 p-6 text-center">
-              <AlertCircle className="w-6 h-6" />
-              <p className="text-xs font-medium">{errorMessage}</p>
-              <button
-                onClick={fetchDeliverables}
-                className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-200 text-xs hover:bg-zinc-700 transition-colors"
-              >
-                Retry Fetch
-              </button>
-            </div>
-          ) : deliverables.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3 text-zinc-500 p-6 text-center">
-              <Layers className="w-8 h-8 text-zinc-700" />
-              <p className="text-xs font-medium text-zinc-400">No deliverables uploaded yet</p>
-              <p className="text-[11px] text-zinc-600 max-w-xs">
-                Upload your first master file to mint a zero-login review token and watermark the asset.
+          <div className="flex items-center gap-3">
+            <Link
+              href="/activity"
+              className="md:hidden px-3 py-1.5 rounded-lg bg-white border border-[#DDD8CF] text-xs font-semibold text-[#171A1F] flex items-center gap-1.5 shadow-xs"
+            >
+              <Activity className="w-3.5 h-3.5 text-[#172B4D]" />
+              <span>Audit</span>
+            </Link>
+
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-[#F8F6F1] text-xs font-semibold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#D7C3A5]" />
+              <span>Upload Deliverable</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
+          {/* Headline banner */}
+          <div className="space-y-1">
+            <h2 className="text-xl font-serif font-bold text-[#171A1F]">Creative Operations Center</h2>
+            <p className="text-xs sm:text-sm text-[#667085]">
+              Linear version history, tokenized client proofing links, and legal clearance vaults.
+            </p>
+          </div>
+
+          {/* ============================================================ */}
+          {/* 3. FOUR OVERVIEW METRIC CARDS                                 */}
+          {/* ============================================================ */}
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            {/* Metric 1: Total Assets */}
+            <div className="p-5 rounded-xl bg-white border border-[#DDD8CF] accent-border-top-navy shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-[#667085]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#171A1F] font-semibold">
+                  Total Assets
+                </span>
+                <div className="w-7 h-7 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] flex items-center justify-center text-[#172B4D]">
+                  <Layers className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <p className="text-2xl font-serif font-bold text-[#171A1F] tracking-tight">
+                {deliverables.length}
               </p>
-              <button
-                onClick={() => setIsUploadModalOpen(true)}
-                className="mt-2 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 transition-colors"
-              >
-                Upload First Deliverable
-              </button>
+              <p className="text-[11px] text-[#667085]">
+                Active project deliverable vaults
+              </p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-950/60 text-zinc-400 uppercase font-mono text-[10px] tracking-wider border-b border-zinc-800">
-                  <tr>
-                    <th className="px-6 py-3.5">Deliverable</th>
-                    <th className="px-6 py-3.5">Project &amp; Client</th>
-                    <th className="px-6 py-3.5">Status</th>
-                    <th className="px-6 py-3.5">Escrow Release</th>
-                    <th className="px-6 py-3.5">Created</th>
-                    <th className="px-6 py-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
-                  {deliverables.map((item) => (
-                    <tr key={item.id} className="hover:bg-zinc-850/40 transition-colors group">
-                      <td className="px-6 py-4">
-                        <Link
-                          href={`/deliverables/${item.id}`}
-                          className="font-semibold text-white hover:text-emerald-400 transition-colors inline-flex items-center gap-1.5"
-                        >
-                          <span>{item.title}</span>
-                          <Eye className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-emerald-400 transition-opacity" />
-                        </Link>
-                        <div className="text-[11px] text-zinc-500 flex items-center gap-2 mt-0.5">
-                          <span className="font-mono text-zinc-400">
-                            v{item.latestVersion?.versionNumber || 1}
-                          </span>
-                          <span>&bull;</span>
-                          <span>{item.fileType}</span>
-                          <span>&bull;</span>
-                          <span>{item.latestVersion?.fileName || "master"}</span>
-                        </div>
-                      </td>
 
-                      <td className="px-6 py-4">
-                        <div className="text-zinc-200 font-medium">{item.projectName}</div>
-                        <div className="text-[11px] text-zinc-500">{item.clientName}</div>
-                      </td>
+            {/* Metric 2: Awaiting Review */}
+            <div className="p-5 rounded-xl bg-white border border-[#DDD8CF] accent-border-top-navy shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-[#667085]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#172B4D] font-semibold">
+                  In Client Review
+                </span>
+                <div className="w-7 h-7 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] flex items-center justify-center text-[#172B4D]">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <p className="text-2xl font-serif font-bold text-[#172B4D] tracking-tight">
+                {inReviewCount}
+              </p>
+              <p className="text-[11px] text-[#667085]">
+                Token links awaiting client decision
+              </p>
+            </div>
 
-                      <td className="px-6 py-4">
-                        {item.isUnlocked ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                            <Unlock className="w-3 h-3" />
-                            <span>Paid &amp; Unlocked</span>
-                          </span>
-                        ) : item.status === "APPROVED" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-                            <FileCheck className="w-3 h-3" />
-                            <span>Approved (Pending Payment)</span>
-                          </span>
-                        ) : item.status === "CHANGES_REQUESTED" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                            <Clock className="w-3 h-3" />
-                            <span>Revisions Requested</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-400 border border-zinc-700">
-                            <Lock className="w-3 h-3" />
-                            <span>In Review</span>
-                          </span>
-                        )}
-                      </td>
+            {/* Metric 3: Changes Requested */}
+            <div className="p-5 rounded-xl bg-white border border-[#DDD8CF] accent-border-top-sand shadow-xs space-y-2">
+              <div className="flex items-center justify-between text-[#667085]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#B7791F] font-semibold">
+                  Changes Requested
+                </span>
+                <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-[#B7791F]">
+                  <Clock className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <p className="text-2xl font-serif font-bold text-[#B7791F] tracking-tight">
+                {revisionsCount}
+              </p>
+              <p className="text-[11px] text-[#667085]">
+                Feedback pins logged for revision
+              </p>
+            </div>
 
-                      <td className="px-6 py-4">
-                        <div className="font-mono font-semibold text-white">
-                          {formatCurrency(item.invoice?.amount || 0, item.invoice?.currency)}
-                        </div>
-                        <div className="text-[10px] text-zinc-500 uppercase font-mono">
-                          {item.invoice?.status || "DRAFT"}
-                        </div>
-                      </td>
+            {/* Metric 4: Approved & Cleared */}
+            <div className="p-5 rounded-xl bg-white border border-[#DDD8CF] shadow-xs space-y-2 border-t-2 border-t-[#2F6B4F]">
+              <div className="flex items-center justify-between text-[#667085]">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#2F6B4F] font-semibold">
+                  Approved &amp; Cleared
+                </span>
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-[#2F6B4F]">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <p className="text-2xl font-serif font-bold text-[#2F6B4F] tracking-tight">
+                {approvedCount}
+              </p>
+              <p className="text-[11px] text-[#667085]">
+                Signed off with SHA-256 audit record
+              </p>
+            </div>
+          </motion.div>
 
-                      <td className="px-6 py-4 text-zinc-500 font-mono text-[11px]">
-                        {new Date(item.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </td>
+          {/* ============================================================ */}
+          {/* 4. DELIVERABLES VAULT TABLE (White surface on #F8F6F1)        */}
+          {/* ============================================================ */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.1 }}
+            className="rounded-2xl border border-[#DDD8CF] bg-white overflow-hidden shadow-xs"
+          >
+            <div className="px-6 py-4 border-b border-[#DDD8CF] bg-[#F8F6F1]/60 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FolderGit2 className="w-4 h-4 text-[#172B4D]" />
+                <h3 className="font-serif font-bold text-sm text-[#171A1F]">
+                  Deliverable Registry
+                </h3>
+              </div>
+              <span className="text-xs text-[#172B4D] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#172B4D]/10 border border-[#172B4D]/20">
+                {deliverables.length} Deliverables
+              </span>
+            </div>
 
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Internal Agency Inspector View */}
+            {isLoading ? (
+              <div className="h-64 flex flex-col items-center justify-center gap-3 text-[#667085]">
+                <Loader2 className="w-6 h-6 animate-spin text-[#172B4D]" />
+                <p className="text-xs font-medium">Loading live database records...</p>
+              </div>
+            ) : errorMessage ? (
+              <div className="h-64 flex flex-col items-center justify-center gap-3 text-rose-700 p-6 text-center">
+                <AlertCircle className="w-6 h-6" />
+                <p className="text-xs font-medium">{errorMessage}</p>
+                <button
+                  onClick={fetchDeliverables}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#172B4D] text-white text-xs font-semibold hover:bg-[#0B1628] transition-colors"
+                >
+                  Retry Fetch
+                </button>
+              </div>
+            ) : deliverables.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center gap-3 text-[#667085] p-6 text-center">
+                <Layers className="w-8 h-8 text-[#DDD8CF]" />
+                <p className="text-xs font-bold text-[#171A1F]">No deliverables uploaded yet</p>
+                <p className="text-[11px] text-[#667085] max-w-xs">
+                  Upload your first design asset (JPG, PNG, SVG, AI, ZIP) to mint a tokenized review link.
+                </p>
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="mt-2 px-4 py-2 rounded-xl bg-[#172B4D] text-[#F8F6F1] text-xs font-semibold shadow-sm hover:bg-[#0B1628] transition-all"
+                >
+                  Upload First Deliverable
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#F8F6F1] text-[#172B4D] uppercase font-mono text-[10px] tracking-wider border-b border-[#DDD8CF]">
+                    <tr>
+                      <th className="px-6 py-3.5 font-bold">Deliverable</th>
+                      <th className="px-6 py-3.5 font-bold">Project &amp; Client</th>
+                      <th className="px-6 py-3.5 font-bold">Status</th>
+                      <th className="px-6 py-3.5 font-bold">Escrow Balance</th>
+                      <th className="px-6 py-3.5 font-bold">Created</th>
+                      <th className="px-6 py-3.5 text-right font-bold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#DDD8CF] text-[#171A1F]">
+                    {deliverables.map((item) => (
+                      <tr key={item.id} className="hover:bg-[#F8F6F1]/50 transition-colors group">
+                        <td className="px-6 py-4">
                           <Link
                             href={`/deliverables/${item.id}`}
-                            title="Inspect Client Feedback & Audit Record"
-                            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
+                            className="font-bold text-[#171A1F] hover:text-[#172B4D] transition-colors inline-flex items-center gap-1.5"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <span>{item.title}</span>
+                            <Eye className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#172B4D] transition-opacity" />
                           </Link>
+                          <div className="text-[11px] text-[#667085] flex items-center gap-2 mt-0.5">
+                            <span className="font-mono text-[#172B4D] font-bold">
+                              v{item.latestVersion?.versionNumber || 1}
+                            </span>
+                            <span>&bull;</span>
+                            <span className="uppercase text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F]">
+                              {item.fileType}
+                            </span>
+                            <span>&bull;</span>
+                            <span className="truncate max-w-[160px]">{item.latestVersion?.fileName || "master"}</span>
+                          </div>
+                        </td>
 
-                          {/* Upload Next Version (Disabled once locked/paid) */}
-                          {!item.isUnlocked && (
-                            <button
-                              onClick={() =>
-                                setVersionTarget({
-                                  id: item.id,
-                                  title: item.title,
-                                  currentVersion: item.latestVersion?.versionNumber || 1,
-                                })
-                              }
-                              title="Upload Next Version (v2+)"
-                              className="p-1.5 rounded-lg bg-zinc-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-zinc-300 transition-colors"
-                            >
-                              <Layers className="w-3.5 h-3.5" />
-                            </button>
+                        <td className="px-6 py-4">
+                          <div className="text-[#171A1F] font-semibold">{item.projectName}</div>
+                          <div className="text-[11px] text-[#667085]">{item.clientName}</div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          {item.isUnlocked ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <Unlock className="w-3 h-3 text-emerald-600" />
+                              <span>Paid &amp; Unlocked</span>
+                            </span>
+                          ) : item.status === "APPROVED" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#F8F6F1] text-[#2F6B4F] border border-emerald-300">
+                              <FileCheck className="w-3 h-3 text-[#2F6B4F]" />
+                              <span>Approved (Locked)</span>
+                            </span>
+                          ) : item.status === "CHANGES_REQUESTED" ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Revisions Requested</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#F8F6F1] text-[#172B4D] border border-[#DDD8CF]">
+                              <Lock className="w-3 h-3 text-[#172B4D]" />
+                              <span>In Review</span>
+                            </span>
                           )}
+                        </td>
 
-                          {/* Copy Client Zero-Auth URL */}
-                          <button
-                            onClick={() => handleCopyLink(item.reviewToken)}
-                            title="Copy Client Zero-Auth Review URL"
-                            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors"
-                          >
-                            {copiedToken === item.reviewToken ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
+                        <td className="px-6 py-4">
+                          <div className="font-mono font-bold text-[#171A1F]">
+                            {formatCurrency(item.invoice?.amount || 0, item.invoice?.currency)}
+                          </div>
+                          <div className="text-[10px] text-[#667085] uppercase font-mono">
+                            {item.invoice?.status || "DRAFT"}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4 text-[#667085] font-mono text-[11px]">
+                          {new Date(item.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Internal Agency Inspector View */}
+                            <Link
+                              href={`/deliverables/${item.id}`}
+                              title="Inspect Client Feedback & Audit Record"
+                              className="p-1.5 rounded-lg bg-[#F8F6F1] hover:bg-[#DDD8CF]/40 text-[#171A1F] border border-[#DDD8CF] transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[#172B4D]" />
+                            </Link>
+
+                            {/* Upload Next Version */}
+                            {!item.isUnlocked && (
+                              <button
+                                onClick={() =>
+                                  setVersionTarget({
+                                    id: item.id,
+                                    title: item.title,
+                                    currentVersion: item.latestVersion?.versionNumber || 1,
+                                  })
+                                }
+                                title="Upload Next Version (v2+)"
+                                className="p-1.5 rounded-lg bg-[#F8F6F1] hover:bg-[#172B4D]/10 text-[#171A1F] hover:text-[#172B4D] border border-[#DDD8CF] transition-colors"
+                              >
+                                <Layers className="w-3.5 h-3.5" />
+                              </button>
                             )}
-                          </button>
 
-                          {/* Launch External Client Canvas */}
-                          <Link
-                            href={`/review/${item.reviewToken}`}
-                            target="_blank"
-                            title="Launch Client Canvas View"
-                            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-emerald-500 hover:text-black text-zinc-300 transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                            {/* Copy Client Zero-Auth URL */}
+                            <button
+                              onClick={() => handleCopyLink(item.reviewToken)}
+                              title="Copy Client Zero-Auth Review URL"
+                              className="p-1.5 rounded-lg bg-[#F8F6F1] hover:bg-[#DDD8CF]/40 text-[#171A1F] border border-[#DDD8CF] transition-colors"
+                            >
+                              {copiedToken === item.reviewToken ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+
+                            {/* Launch External Client Canvas */}
+                            <Link
+                              href={`/review/${item.reviewToken}`}
+                              target="_blank"
+                              title="Launch Client Canvas View"
+                              className="p-1.5 rounded-lg bg-[#F8F6F1] hover:bg-[#172B4D] hover:text-[#F8F6F1] text-[#171A1F] border border-[#DDD8CF] transition-all"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </motion.div>
+        </main>
       </div>
 
       {/* Initial Deliverable Upload Modal */}

@@ -13,40 +13,209 @@ import {
   Loader2,
   DollarSign,
   FileText,
+  Image as ImageIcon,
 } from "lucide-react";
+import { FileType } from "@/types/review";
 
 interface DeliverableUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
+  projectId?: string;
   onUploadComplete?: (reviewToken: string) => void;
 }
 
-type UploadState = "IDLE" | "AUTHORIZING" | "UPLOADING" | "SUCCESS" | "ERROR";
+type UploadState =
+  | "IDLE"
+  | "AUTHORIZING"
+  | "WATERMARKING"
+  | "UPLOADING"
+  | "COMMITTING"
+  | "SUCCESS"
+  | "ERROR";
 
-const ALLOWED_MIME_TYPES: Record<string, "PDF" | "PNG" | "JPG" | "SVG"> = {
-  "application/pdf": "PDF",
+const EXTENSION_MAP: Record<string, FileType> = {
+  png: "PNG",
+  jpg: "JPG",
+  jpeg: "JPG",
+  svg: "SVG",
+  ai: "ILLUSTRATOR",
+  eps: "ILLUSTRATOR",
+  zip: "ZIP",
+};
+
+const ALLOWED_MIME_TYPES: Record<string, FileType> = {
   "image/png": "PNG",
   "image/jpeg": "JPG",
   "image/svg+xml": "SVG",
+  "application/zip": "ZIP",
+  "application/x-zip-compressed": "ZIP",
+  "application/postscript": "ILLUSTRATOR",
+  "application/illustrator": "ILLUSTRATOR",
 };
 
+function detectFileType(file: File): FileType {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  if (EXTENSION_MAP[ext]) return EXTENSION_MAP[ext];
+  if (ALLOWED_MIME_TYPES[file.type]) return ALLOWED_MIME_TYPES[file.type];
+  return "PNG";
+}
+
+function isSourceMaster(file: File): boolean {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  return ["ai", "eps", "zip"].includes(ext);
+}
+
 const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+
+function generateSourcePlaceholderBlob(file: File, type: FileType): Promise<Blob> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1600;
+    canvas.height = 1000;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return resolve(new Blob([]));
+
+    ctx.fillStyle = "#F8F6F1";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Subtle background grid
+    ctx.strokeStyle = "#DDD8CF";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    // Central card container
+    ctx.fillStyle = "#FFFFFF";
+    ctx.strokeStyle = "#172B4D";
+    ctx.lineWidth = 3;
+    if (ctx.roundRect) {
+      ctx.roundRect(canvas.width / 2 - 420, canvas.height / 2 - 260, 840, 520, 24);
+    } else {
+      ctx.rect(canvas.width / 2 - 420, canvas.height / 2 - 260, 840, 520);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    // Type badge banner
+    ctx.fillStyle = "#172B4D";
+    ctx.font = "bold 24px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`• ${type} MASTER DELIVERABLE •`, canvas.width / 2, canvas.height / 2 - 140);
+
+    // Master File Name
+    ctx.fillStyle = "#171A1F";
+    ctx.font = "bold 36px Georgia, serif";
+    const truncatedName = file.name.length > 32 ? file.name.substring(0, 29) + "..." : file.name;
+    ctx.fillText(truncatedName, canvas.width / 2, canvas.height / 2 - 40);
+
+    // Metadata description
+    ctx.fillStyle = "#667085";
+    ctx.font = "20px sans-serif";
+    ctx.fillText("Master source asset protected by ProofDesk Escrow.", canvas.width / 2, canvas.height / 2 + 30);
+    ctx.fillText(
+      `File Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB • Full uncompressed master releases upon approval`,
+      canvas.width / 2,
+      canvas.height / 2 + 70
+    );
+
+    canvas.toBlob((blob) => resolve(blob || new Blob([])), "image/jpeg", 0.88);
+  });
+}
+
+async function generateWatermarkedPreviewBlob(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || 1920;
+      canvas.height = img.naturalHeight || 1080;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.85);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+function uploadBinaryWithProgress(
+  url: string,
+  blob: Blob | File,
+  contentType: string,
+  onProgress: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url, true);
+    xhr.setRequestHeader("Content-Type", contentType);
+
+    xhr.upload.onprogress = (event: ProgressEvent) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Storage service rejected upload with status ${xhr.status}.`));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Network interruption during asset stream."));
+    };
+
+    xhr.send(blob);
+  });
+}
 
 export function DeliverableUploadModal({
   isOpen,
   onClose,
+  projectId,
   onUploadComplete,
 }: DeliverableUploadModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const companionInputRef = useRef<HTMLInputElement>(null);
 
-  // Form State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [companionPreviewFile, setCompanionPreviewFile] = useState<File | null>(null);
+  const [selectedTypeOverride, setSelectedTypeOverride] = useState<FileType | null>(null);
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [priceDollars, setPriceDollars] = useState<string>("1500");
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
 
-  // Upload Progress State
   const [uploadState, setUploadState] = useState<UploadState>("IDLE");
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -55,12 +224,13 @@ export function DeliverableUploadModal({
 
   if (!isOpen) return null;
 
-  // File Validation Logic
   const handleValidateAndSetFile = (file: File) => {
     setErrorMessage(null);
 
-    if (!ALLOWED_MIME_TYPES[file.type]) {
-      setErrorMessage("Unsupported file format. Please upload a PDF, PNG, JPG, or SVG.");
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const isKnown = EXTENSION_MAP[ext] || ALLOWED_MIME_TYPES[file.type];
+    if (!isKnown) {
+      setErrorMessage("Unsupported file format. Please upload PNG, JPG, JPEG, SVG, Illustrator (.ai), or ZIP.");
       return;
     }
 
@@ -70,8 +240,10 @@ export function DeliverableUploadModal({
     }
 
     setSelectedFile(file);
+    const detected = detectFileType(file);
+    setSelectedTypeOverride(detected);
+
     if (!title.trim()) {
-      // Clean base name for title placeholder
       const baseName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
       setTitle(baseName.charAt(0).toUpperCase() + baseName.slice(1));
     }
@@ -101,76 +273,79 @@ export function DeliverableUploadModal({
     }
   };
 
-  // Execution: Presign Request -> Binary Upload Pipeline
-  // Execution: Presign Request -> Binary Upload -> DB Transaction
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !title.trim()) return;
 
     setErrorMessage(null);
-    setUploadState("AUTHORIZING");
     setProgressPercent(0);
 
     try {
-      const fileType = ALLOWED_MIME_TYPES[selectedFile.type];
+      const fileType = selectedTypeOverride || detectFileType(selectedFile);
 
-      // 1. Authorize Upload Target via Presign Route Handler
+      setUploadState("WATERMARKING");
+      let previewBlob: Blob;
+      if (companionPreviewFile) {
+        previewBlob = await generateWatermarkedPreviewBlob(companionPreviewFile);
+      } else if (isSourceMaster(selectedFile)) {
+        previewBlob = await generateSourcePlaceholderBlob(selectedFile, fileType);
+      } else {
+        previewBlob = await generateWatermarkedPreviewBlob(selectedFile);
+      }
+
+      setUploadState("AUTHORIZING");
       const presignResponse = await fetch("/api/upload/presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fileName: selectedFile.name,
           fileType,
-          mimeType: selectedFile.type,
+          mimeType: selectedFile.type || "application/octet-stream",
           fileSize: selectedFile.size,
-          projectId: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+          previewMimeType: "image/jpeg",
+          previewFileSize: previewBlob.size,
+          projectId: projectId || undefined,
           versionNumber: 1,
         }),
       });
 
       if (!presignResponse.ok) {
         const errPayload = await presignResponse.json();
-        throw new Error(errPayload.error || "Failed to generate presigned upload ticket.");
+        throw new Error(errPayload.error || "Failed to generate presigned upload tickets.");
       }
 
-      const { uploadUrl, cleanFileKey, previewKey } = await presignResponse.json();
+      const presignData = await presignResponse.json();
+      const cleanUploadUrl = presignData.clean?.uploadUrl || presignData.uploadUrl;
+      const previewUploadUrl = presignData.preview?.uploadUrl;
+      const cleanFileKey = presignData.clean?.key || presignData.cleanFileKey;
+      const previewKey = presignData.preview?.key || presignData.previewKey;
 
-      // 2. Direct-to-Storage Binary Stream
       setUploadState("UPLOADING");
 
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader("Content-Type", selectedFile.type);
+      await uploadBinaryWithProgress(
+        cleanUploadUrl,
+        selectedFile,
+        selectedFile.type,
+        (p) => setProgressPercent(Math.round(p * 0.7))
+      );
 
-        xhr.upload.onprogress = (event: ProgressEvent) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            setProgressPercent(percent);
-          }
-        };
+      if (previewUploadUrl) {
+        await uploadBinaryWithProgress(
+          previewUploadUrl,
+          previewBlob,
+          "image/jpeg",
+          (p) => setProgressPercent(70 + Math.round(p * 0.3))
+        );
+      } else {
+        setProgressPercent(100);
+      }
 
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Storage service rejected upload with status ${xhr.status}.`));
-          }
-        };
-
-        xhr.onerror = () => {
-          reject(new Error("Network interruption during asset upload."));
-        };
-
-        xhr.send(selectedFile);
-      });
-
-      // 3. Commit Metadata to PostgreSQL via /api/deliverables
+      setUploadState("COMMITTING");
       const deliverableResponse = await fetch("/api/deliverables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title,
+          title: title.trim(),
           description: description.trim() || undefined,
           fileType,
           fileName: selectedFile.name,
@@ -179,18 +354,17 @@ export function DeliverableUploadModal({
           cleanFileKey,
           previewKey,
           priceDollars: parseInt(priceDollars, 10) || 1500,
-          projectId: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+          projectId: projectId || undefined,
         }),
       });
 
       if (!deliverableResponse.ok) {
         const dbErr = await deliverableResponse.json();
-        throw new Error(dbErr.error || "Failed to save deliverable record in database.");
+        throw new Error(dbErr.error || "Failed to record deliverable in database.");
       }
 
       const dbData = await deliverableResponse.json();
 
-      // 4. Ingestion Complete: Expose Real DB Review Token
       setUploadState("SUCCESS");
       setGeneratedToken(dbData.reviewToken);
       if (onUploadComplete) {
@@ -198,7 +372,9 @@ export function DeliverableUploadModal({
       }
     } catch (err: unknown) {
       setUploadState("ERROR");
-      setErrorMessage(err instanceof Error ? err.message : "An unexpected upload error occurred.");
+      setErrorMessage(
+        err instanceof Error ? err.message : "An unexpected upload error occurred."
+      );
     }
   };
 
@@ -212,6 +388,8 @@ export function DeliverableUploadModal({
 
   const handleResetModal = () => {
     setSelectedFile(null);
+    setCompanionPreviewFile(null);
+    setSelectedTypeOverride(null);
     setTitle("");
     setDescription("");
     setPriceDollars("1500");
@@ -223,49 +401,51 @@ export function DeliverableUploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 select-none">
-      <div className="w-full max-w-xl rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl p-6 relative">
-        {/* Close Button */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 select-none animate-in fade-in duration-200 font-sans">
+      <div className="w-full max-w-xl rounded-2xl bg-white border border-[#DDD8CF] shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto accent-border-top-navy">
         <button
           onClick={handleResetModal}
-          disabled={uploadState === "AUTHORIZING" || uploadState === "UPLOADING"}
-          className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 disabled:opacity-30"
+          disabled={
+            uploadState === "AUTHORIZING" ||
+            uploadState === "WATERMARKING" ||
+            uploadState === "UPLOADING" ||
+            uploadState === "COMMITTING"
+          }
+          className="absolute top-4 right-4 text-[#667085] hover:text-[#171A1F] p-1.5 rounded-lg hover:bg-[#F8F6F1] transition-colors disabled:opacity-30"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* Modal Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+          <div className="w-10 h-10 rounded-xl bg-[#172B4D]/10 border border-[#172B4D]/20 flex items-center justify-center text-[#172B4D] shadow-xs">
             <UploadCloud className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">Upload New Deliverable</h2>
-            <p className="text-xs text-zinc-400">
-              Files are watermarked on ingestion and locked behind escrow paywalls.
+            <h2 className="text-lg font-serif font-bold text-[#171A1F] tracking-tight">Upload New Deliverable</h2>
+            <p className="text-xs text-[#667085]">
+              Clean master files are locked in escrow. Clients review visual proofings with watermarks.
             </p>
           </div>
         </div>
 
-        {/* SUCCESS VIEW: Token Link Generator */}
         {uploadState === "SUCCESS" && generatedToken ? (
           <div className="space-y-4 py-3">
-            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
                 <FileCheck className="w-4 h-4" />
               </div>
               <div className="flex-1">
-                <h3 className="text-xs font-semibold text-emerald-300">
-                  Asset Ingested & Review Token Minted
+                <h3 className="text-xs font-semibold text-emerald-900">
+                  Asset Ingested &amp; Review Token Minted
                 </h3>
-                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                  Version 1 has been stored in the vault. Send this tokenized link to the client for zero-login proofing.
+                <p className="text-[11px] text-[#667085] mt-0.5 leading-relaxed">
+                  Clean master is isolated in storage. Send this tokenized link to the client for zero-login proofing.
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#667085] mb-1.5 font-mono">
                 Client Review URL (Zero-Auth)
               </label>
               <div className="flex items-center gap-2">
@@ -273,118 +453,177 @@ export function DeliverableUploadModal({
                   type="text"
                   readOnly
                   value={`${typeof window !== "undefined" ? window.location.origin : ""}/review/${generatedToken}`}
-                  className="flex-1 px-3 py-2 text-xs font-mono rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 select-all focus:outline-none"
+                  className="flex-1 px-3 py-2 text-xs font-mono rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-[#172B4D] font-bold select-all focus:outline-none"
                 />
                 <button
                   onClick={handleCopyLink}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-100 transition-all shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#172B4D] hover:bg-[#0B1628] text-xs font-semibold text-[#F8F6F1] transition-all shrink-0 shadow-sm"
                 >
-                  {hasCopiedToken ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {hasCopiedToken ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-300" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-[#F8F6F1]" />
+                  )}
                   <span>{hasCopiedToken ? "Copied" : "Copy"}</span>
                 </button>
               </div>
             </div>
 
-            <div className="pt-3 flex items-center justify-between border-t border-zinc-900">
+            <div className="pt-3 flex items-center justify-between border-t border-[#DDD8CF]">
               <a
                 href={`/review/${generatedToken}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+                className="inline-flex items-center gap-1.5 text-xs text-[#172B4D] hover:text-[#0B1628] font-semibold"
               >
                 <span>Launch Client View</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
               <button
                 onClick={handleResetModal}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold transition-all"
+                className="px-4 py-2 rounded-lg bg-white hover:bg-[#F8F6F1] text-[#171A1F] text-xs font-semibold transition-all border border-[#DDD8CF]"
               >
                 Done
               </button>
             </div>
           </div>
         ) : (
-          /* FORM VIEW: Upload & Metadata */
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Drag & Drop Surface */}
+            {/* Primary Master Deliverable Dropzone */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
                 isDragActive
-                  ? "border-indigo-500 bg-indigo-950/20"
+                  ? "border-[#172B4D] bg-[#F8F6F1]"
                   : selectedFile
-                  ? "border-emerald-500/40 bg-emerald-950/10"
-                  : "border-zinc-800 hover:border-zinc-700 bg-zinc-900/40"
+                  ? "border-emerald-500/50 bg-emerald-50/30"
+                  : "border-[#DDD8CF] hover:border-[#172B4D]/60 bg-[#F8F6F1]/50"
               }`}
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.svg"
+                accept=".png,.jpg,.jpeg,.svg,.ai,.eps,.zip"
                 onChange={handleFileChange}
                 className="hidden"
               />
 
               {selectedFile ? (
                 <div className="flex items-center justify-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
                     <FileCheck className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs font-medium text-zinc-100 truncate max-w-[280px]">
+                    <p className="text-xs font-semibold text-[#171A1F] truncate max-w-[280px]">
                       {selectedFile.name}
                     </p>
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="text-[11px] text-[#667085]">
                       {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull;{" "}
-                      {ALLOWED_MIME_TYPES[selectedFile.type]}
+                      <span className="font-semibold text-[#172B4D]">
+                        {selectedTypeOverride || detectFileType(selectedFile)} Master
+                      </span>
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <UploadCloud className="w-8 h-8 text-zinc-500 mx-auto" />
-                  <p className="text-xs font-medium text-zinc-300">
-                    Drop design asset here, or <span className="text-indigo-400">browse</span>
+                  <UploadCloud className="w-8 h-8 text-[#667085] mx-auto" />
+                  <p className="text-xs font-medium text-[#171A1F]">
+                    Drop design asset here, or <span className="text-[#172B4D] font-semibold underline underline-offset-2">browse</span>
                   </p>
-                  <p className="text-[11px] text-zinc-500">
-                    PDF, PNG, JPG, or SVG up to 100MB
+                  <p className="text-[11px] text-[#667085]">
+                    PNG, JPG, SVG, Illustrator (.ai), or ZIP up to 100MB
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Error Message */}
+            {/* Optional Companion Preview Dropzone for Source Master Files */}
+            {selectedFile && isSourceMaster(selectedFile) && (
+              <div className="p-3.5 rounded-xl bg-[#F8F6F1] border border-[#DDD8CF] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-[#172B4D]" />
+                    <span className="text-xs font-semibold text-[#171A1F]">
+                      Visual Canvas Preview (Recommended)
+                    </span>
+                  </div>
+                  {companionPreviewFile && (
+                    <button
+                      type="button"
+                      onClick={() => setCompanionPreviewFile(null)}
+                      className="text-[10px] text-rose-600 hover:text-rose-700"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-[#667085] leading-relaxed">
+                  Drop a PNG/JPG screenshot or exported frame here so clients can visually review and drop spatial comments on the canvas. If omitted, a branded vault placeholder is automatically generated.
+                </p>
+                <div
+                  onClick={() => companionInputRef.current?.click()}
+                  className={`border border-dashed rounded-lg p-2.5 text-center cursor-pointer transition-all ${
+                    companionPreviewFile
+                      ? "border-emerald-500/50 bg-white"
+                      : "border-[#DDD8CF] hover:border-[#172B4D]/50 bg-white"
+                  }`}
+                >
+                  <input
+                    ref={companionInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setCompanionPreviewFile(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  {companionPreviewFile ? (
+                    <div className="flex items-center justify-center gap-2 text-xs text-emerald-800 font-medium">
+                      <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{companionPreviewFile.name} ({(companionPreviewFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-[#667085] font-medium">
+                      Drop PNG/JPG screenshot or <span className="text-[#172B4D] font-semibold underline underline-offset-2">browse preview</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {errorMessage && (
-              <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/30 flex items-center gap-2 text-rose-300 text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2 text-rose-800 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Metadata Fields */}
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#667085] mb-1 font-mono">
                   Deliverable Title
                 </label>
                 <div className="relative">
-                  <FileText className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5" />
+                  <FileText className="w-3.5 h-3.5 text-[#667085] absolute left-3 top-2.5" />
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Modern Architecture Brand Book"
+                    placeholder="e.g. Identity Design System v1"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] placeholder-[#667085] focus:outline-none focus:border-[#172B4D] transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#667085] mb-1 font-mono">
                   Deliverable Description (Optional)
                 </label>
                 <textarea
@@ -392,55 +631,70 @@ export function DeliverableUploadModal({
                   placeholder="Context, change directives, or scope notes for the reviewer..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] placeholder-[#667085] focus:outline-none focus:border-[#172B4D] transition-colors resize-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
-                  Escrow Balance Release (USD)
-                </label>
-                <div className="relative">
-                  <DollarSign className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-2.5" />
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    required
-                    placeholder="1500"
-                    value={priceDollars}
-                    onChange={(e) => setPriceDollars(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#667085] mb-1 font-mono">
+                    Deliverable Format
+                  </label>
+                  <select
+                    value={selectedTypeOverride || (selectedFile ? detectFileType(selectedFile) : "PNG")}
+                    onChange={(e) => setSelectedTypeOverride(e.target.value as FileType)}
+                    className="w-full px-3 py-2 text-xs rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] focus:outline-none focus:border-[#172B4D] font-medium cursor-pointer"
+                  >
+                    <option value="PNG">Raster PNG</option>
+                    <option value="JPG">Raster JPG</option>
+                    <option value="SVG">Vector SVG</option>
+                    <option value="ILLUSTRATOR">Illustrator Vector (.ai / .eps)</option>
+                    <option value="ZIP">ZIP Master Archive</option>
+                  </select>
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-1">
-                  Amount charged to client upon approval before unwatermarked files release.
-                </p>
+
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#667085] mb-1 font-mono">
+                    Escrow Release (USD)
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="w-3.5 h-3.5 text-[#667085] absolute left-3 top-2.5" />
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      placeholder="1500"
+                      value={priceDollars}
+                      onChange={(e) => setPriceDollars(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] placeholder-[#667085] focus:outline-none focus:border-[#172B4D] transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Upload Progress Bar */}
-            {(uploadState === "AUTHORIZING" || uploadState === "UPLOADING") && (
+            {uploadState !== "IDLE" && uploadState !== "ERROR" && (
               <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                <div className="flex items-center justify-between text-[11px] text-[#667085] font-mono">
                   <span className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
-                    {uploadState === "AUTHORIZING"
-                      ? "Authorizing storage slot..."
-                      : "Streaming asset directly to storage..."}
+                    <Loader2 className="w-3 h-3 animate-spin text-[#172B4D]" />
+                    {uploadState === "WATERMARKING" && "Burning in protection watermarks..."}
+                    {uploadState === "AUTHORIZING" && "Authorizing storage vault slots..."}
+                    {uploadState === "UPLOADING" && "Streaming assets to storage..."}
+                    {uploadState === "COMMITTING" && "Registering deliverable in database..."}
                   </span>
-                  <span className="font-mono">{progressPercent}%</span>
+                  <span>{progressPercent}%</span>
                 </div>
-                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-[#F8F6F1] rounded-full overflow-hidden border border-[#DDD8CF]">
                   <div
-                    className="h-full bg-indigo-600 transition-all duration-150"
+                    className="h-full bg-[#172B4D] transition-all duration-150"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
               </div>
             )}
 
-            {/* Submit CTA */}
             <div className="pt-2">
               <button
                 type="submit"
@@ -448,16 +702,21 @@ export function DeliverableUploadModal({
                   !selectedFile ||
                   !title.trim() ||
                   uploadState === "AUTHORIZING" ||
-                  uploadState === "UPLOADING"
+                  uploadState === "WATERMARKING" ||
+                  uploadState === "UPLOADING" ||
+                  uploadState === "COMMITTING"
                 }
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-lg shadow-indigo-950/40 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] disabled:opacity-40 disabled:cursor-not-allowed text-[#F8F6F1] text-xs font-semibold shadow-md transition-all active:scale-[0.99]"
               >
-                {uploadState === "AUTHORIZING" || uploadState === "UPLOADING" ? (
+                {uploadState === "AUTHORIZING" ||
+                uploadState === "WATERMARKING" ||
+                uploadState === "UPLOADING" ||
+                uploadState === "COMMITTING" ? (
                   <span>Processing Upload...</span>
                 ) : (
                   <>
-                    <UploadCloud className="w-4 h-4" />
-                    <span>Upload & Mint Review Link</span>
+                    <UploadCloud className="w-4 h-4 text-[#F8F6F1]" />
+                    <span>Upload &amp; Mint Review Link</span>
                   </>
                 )}
               </button>

@@ -66,17 +66,17 @@ export function ApprovalModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 select-none">
-      <div className="relative w-full max-w-lg rounded-2xl bg-zinc-950 border border-zinc-800 p-6 shadow-2xl text-zinc-100 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 select-none font-sans">
+      <div className="relative w-full max-w-lg rounded-2xl bg-white border border-[#DDD8CF] accent-border-top-navy p-6 shadow-2xl text-[#171A1F] space-y-5">
         {/* Modal Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-10 h-10 rounded-xl bg-[#172B4D]/10 border border-[#172B4D]/20 flex items-center justify-center text-[#172B4D] font-bold shadow-xs">
               <Shield className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white">Sign &amp; Authorize Handoff</h2>
-              <p className="text-xs text-zinc-400">
+              <h2 className="text-base font-serif font-bold text-[#171A1F]">Sign &amp; Authorize Handoff</h2>
+              <p className="text-xs text-[#667085]">
                 Deliverable Version {version.versionNumber} &bull; {version.fileName}
               </p>
             </div>
@@ -84,7 +84,7 @@ export function ApprovalModal({
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            className="p-1 rounded-lg text-[#667085] hover:text-[#171A1F] hover:bg-[#F8F6F1] transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
           </button>
@@ -92,25 +92,25 @@ export function ApprovalModal({
 
         {/* Inline Error Banner */}
         {errorMessage && (
-          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center gap-2.5 text-xs text-rose-300">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-xs text-rose-800">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {/* Legal Consent Non-Repudiation Box */}
-        <div className="p-4 rounded-xl bg-zinc-900/70 border border-zinc-800/80 space-y-2 text-xs text-zinc-300 leading-relaxed">
-          <p className="font-semibold text-white">Binding Legal Non-Repudiation Terms:</p>
+        <div className="p-4 rounded-xl bg-[#F8F6F1] border border-[#DDD8CF] space-y-2 text-xs text-[#171A1F]/90 leading-relaxed">
+          <p className="font-bold text-[#172B4D]">Binding Legal Non-Repudiation Terms:</p>
           <p>
             By signing, you confirm that you have reviewed Version {version.versionNumber} of &quot;{deliverable.title}&quot; and authorize its release. An escrow invoice of{" "}
-            <span className="font-semibold text-emerald-400">{invoiceAmountFormatted}</span> will be generated. High-resolution master assets will unlock automatically upon payment clearance.
+            <span className="font-bold text-[#172B4D]">{invoiceAmountFormatted}</span> will be generated. High-resolution master assets will unlock automatically upon approval.
           </p>
         </div>
 
         {/* Form Inputs */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
+            <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#667085]">
               Signer Legal Name
             </label>
             <input
@@ -120,12 +120,12 @@ export function ApprovalModal({
               value={signerName}
               onChange={(e) => setSignerName(e.target.value)}
               placeholder="e.g. Sarah Jenkins"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-xs text-[#171A1F] placeholder-[#667085] focus:outline-none focus:border-[#172B4D] transition-colors disabled:opacity-50"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">
+            <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#667085]">
               Signer Corporate Email
             </label>
             <input
@@ -135,7 +135,7 @@ export function ApprovalModal({
               value={signerEmail}
               onChange={(e) => setSignerEmail(e.target.value)}
               placeholder="signer@company.com"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF] text-xs text-[#171A1F] placeholder-[#667085] focus:outline-none focus:border-[#172B4D] transition-colors disabled:opacity-50"
             />
           </div>
 
@@ -145,9 +145,9 @@ export function ApprovalModal({
               checked={hasConsented}
               disabled={isSubmitting}
               onChange={(e) => setHasConsented(e.target.checked)}
-              className="mt-0.5 rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+              className="mt-0.5 rounded border-[#DDD8CF] text-[#172B4D] focus:ring-0 focus:ring-offset-0 cursor-pointer"
             />
-            <span className="text-xs text-zinc-300">
+            <span className="text-xs text-[#667085]">
               I agree to the electronic signature audit trail and commit to releasing final payment of {invoiceAmountFormatted}.
             </span>
           </label>
@@ -156,17 +156,17 @@ export function ApprovalModal({
           <button
             type="submit"
             disabled={isSubmitting || !signerName.trim() || !signerEmail.trim() || !hasConsented}
-            className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-zinc-800 disabled:text-zinc-500 text-black text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/30 transition-all active:scale-[0.99]"
+            className="w-full py-3 px-4 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] disabled:bg-[#F8F6F1] disabled:text-[#667085] text-[#F8F6F1] text-xs font-semibold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99]"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-black" />
+                <Loader2 className="w-4 h-4 animate-spin text-[#F8F6F1]" />
                 <span>Authorizing &amp; Connecting to Stripe...</span>
               </>
             ) : (
               <>
                 <Lock className="w-4 h-4" />
-                <span>Sign &amp; Proceed to Stripe Escrow ({invoiceAmountFormatted})</span>
+                <span>Sign &amp; Proceed to Escrow ({invoiceAmountFormatted})</span>
               </>
             )}
           </button>

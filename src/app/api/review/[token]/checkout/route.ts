@@ -31,6 +31,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!deliverable) {
+      if (token === "demo-token") {
+        const appOrigin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+        return NextResponse.json(
+          {
+            success: true,
+            checkoutUrl: `${appOrigin}/review/demo-token?session_id=demo_completed_session`,
+            sessionId: "demo_completed_session",
+          },
+          { status: 200 }
+        );
+      }
+
       return NextResponse.json({ error: "Deliverable not found." }, { status: 404 });
     }
 

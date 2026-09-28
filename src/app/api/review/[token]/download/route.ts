@@ -18,7 +18,7 @@ export async function GET(
     const validation = ParamsSchema.safeParse(params);
     if (!validation.success) {
       return NextResponse.json(
-        { error: "Invalid review token" },
+        { error: "Invalid review token format." },
         { status: 400 }
       );
     }
@@ -27,7 +27,7 @@ export async function GET(
     const { searchParams } = new URL(req.url);
     const requestedVersion = searchParams.get("version");
 
-    // Fetch deliverable, approval record, and version history
+    // Fetch deliverable, legal approval record, and versions
     const deliverable = await prisma.deliverable.findUnique({
       where: { reviewToken: token },
       include: {
@@ -39,13 +39,29 @@ export async function GET(
     });
 
     if (!deliverable) {
+      if (token === "demo-token") {
+        const demoDownloadUrl =
+          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop";
+        const wantsJson =
+          req.headers.get("accept")?.includes("application/json") ||
+          searchParams.get("format") === "json";
+
+        if (wantsJson) {
+          return NextResponse.json(
+            { downloadUrl: demoDownloadUrl, fileName: "aura_brand_system_master.png" },
+            { status: 200 }
+          );
+        }
+        return NextResponse.redirect(demoDownloadUrl, 307);
+      }
+
       return NextResponse.json(
-        { error: "Deliverable not found" },
+        { error: "Deliverable not found." },
         { status: 404 }
       );
     }
 
-    // Cryptographic Escrow Security Gate
+    // 1. Escrow Lock Check
     if (!deliverable.isUnlocked) {
       return NextResponse.json(
         {
@@ -62,31 +78,41 @@ export async function GET(
       );
     }
 
-    // Resolve target version:
-    // 1. Explicit query parameter (?version=X)
-    // 2. Legally approved version from ApprovalRecord
-    // 3. Highest/latest version
-    let targetVersion = deliverable.versions[0];
+    // 2. Approved-Version Binding
+    // Clean file release is restricted to the legally signed version recorded in ApprovalRecord
+    const approvedVersionNumber = deliverable.approvalRecord?.approvedVersion;
+
+    if (approvedVersionNumber === undefined || approvedVersionNumber === null) {
+      return NextResponse.json(
+        { error: "Security violation: No formal approval record found to authorize master release." },
+        { status: 403 }
+      );
+    }
 
     if (requestedVersion) {
-      const parsed = parseInt(requestedVersion, 10);
-      const found = deliverable.versions.find((v) => v.versionNumber === parsed);
-      if (found) targetVersion = found;
-    } else if (deliverable.approvalRecord?.approvedVersion) {
-      const approved = deliverable.versions.find(
-        (v) => v.versionNumber === deliverable.approvalRecord?.approvedVersion
-      );
-      if (approved) targetVersion = approved;
+      const parsedVersion = parseInt(requestedVersion, 10);
+      if (parsedVersion !== approvedVersionNumber) {
+        return NextResponse.json(
+          {
+            error: `Access denied: Only legally approved version (${approvedVersionNumber}) can be downloaded. Requested version (${parsedVersion}) was not signed off.`,
+          },
+          { status: 403 }
+        );
+      }
     }
+
+    const targetVersion = deliverable.versions.find(
+      (v) => v.versionNumber === approvedVersionNumber
+    );
 
     if (!targetVersion || !targetVersion.cleanFileKey) {
       return NextResponse.json(
-        { error: "Target master clean file record does not exist." },
+        { error: "The approved clean master asset was not found in storage records." },
         { status: 404 }
       );
     }
 
-    // Telemetry Audit: Record download event asynchronously
+    // 3. Telemetry Audit Logging (Aligned with Prisma schema fields)
     const ipAddress =
       req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
       req.headers.get("x-real-ip") ||
@@ -105,7 +131,7 @@ export async function GET(
       })
       .catch((err) => console.error("[Telemetry Download Log Error]:", err));
 
-    // Local Development Fallback
+    // 4. Local Development Fallback
     if (
       !isR2Configured() ||
       (process.env.NODE_ENV === "development" && process.env.USE_LOCAL_STORAGE === "true")
@@ -116,11 +142,11 @@ export async function GET(
       });
     }
 
-    // Generate signed download URL with 60-second TTL
+    // 5. Generate Signed Download URL (Attachment disposition, 120s TTL)
     const downloadUrl = await generatePresignedDownloadUrl({
       key: targetVersion.cleanFileKey,
       downloadFileName: targetVersion.fileName,
-      expiresIn: 60,
+      expiresIn: 120,
     });
 
     const wantsJson =
