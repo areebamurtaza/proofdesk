@@ -1,7 +1,7 @@
-// filepath: src/app/api/review/[token]/checkout/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { getAppOrigin } from "@/lib/origin";
 
 interface RouteParams {
   params: {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (!deliverable) {
       if (token === "demo-token") {
-        const appOrigin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+        const appOrigin = getAppOrigin(request);
         return NextResponse.json(
           {
             success: true,
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const appOrigin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+    const appOrigin = getAppOrigin(request);
 
     // Create live Stripe Checkout Session on Stripe's test servers
     const session = await stripe.checkout.sessions.create({

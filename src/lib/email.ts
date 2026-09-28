@@ -1,11 +1,10 @@
-// filepath: src/lib/email.ts
 import { Resend } from "resend";
+import { getAppOrigin } from "@/lib/origin";
 
 const resendApiKey = process.env.RESEND_API_KEY;
 export const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 const EMAIL_FROM = process.env.EMAIL_FROM || "ProofDesk <onboarding@resend.dev>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 interface SendReviewInviteParams {
   clientEmail: string;
@@ -17,6 +16,7 @@ interface SendReviewInviteParams {
   reviewToken: string;
   escrowAmountCents: number;
   currency?: string;
+  appOrigin?: string;
 }
 
 interface SendReleaseReceiptParams {
@@ -29,6 +29,7 @@ interface SendReleaseReceiptParams {
   escrowAmountCents: number;
   signatureHash: string;
   currency?: string;
+  appOrigin?: string;
 }
 
 /**
@@ -44,13 +45,15 @@ export async function sendReviewInviteEmail({
   reviewToken,
   escrowAmountCents,
   currency = "USD",
+  appOrigin,
 }: SendReviewInviteParams) {
   if (!resend) {
     console.warn("[Resend]: Skipped dispatch — RESEND_API_KEY is not configured.");
     return { success: false, reason: "MISSING_KEY" };
   }
 
-  const reviewUrl = `${APP_URL}/review/${reviewToken}`;
+  const baseUrl = appOrigin || getAppOrigin();
+  const reviewUrl = `${baseUrl}/review/${reviewToken}`;
   const formattedPrice = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
@@ -144,13 +147,15 @@ export async function sendPaymentReceiptAndAssetReleaseEmail({
   escrowAmountCents,
   signatureHash,
   currency = "USD",
+  appOrigin,
 }: SendReleaseReceiptParams) {
   if (!resend) {
     console.warn("[Resend]: Skipped dispatch — RESEND_API_KEY is not configured.");
     return { success: false, reason: "MISSING_KEY" };
   }
 
-  const downloadUrl = `${APP_URL}/api/review/${reviewToken}/download`;
+  const baseUrl = appOrigin || getAppOrigin();
+  const downloadUrl = `${baseUrl}/api/review/${reviewToken}/download`;
   const formattedPrice = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase(),

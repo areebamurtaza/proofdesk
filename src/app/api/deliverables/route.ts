@@ -4,6 +4,7 @@ import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { getOrCreateCurrentAgency } from "@/lib/agency";
 import { sendReviewInviteEmail } from "@/lib/email";
+import { getAppOrigin } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
@@ -266,6 +267,9 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    const origin = getAppOrigin(request);
+    const reviewUrl = `${origin}/review/${deliverable.reviewToken}`;
+
     // Asynchronously dispatch transactional notification via Resend
     sendReviewInviteEmail({
       clientEmail: deliverable.project.clientEmail,
@@ -277,10 +281,8 @@ export async function POST(request: NextRequest) {
       reviewToken: deliverable.reviewToken,
       escrowAmountCents: normalizedAmountCents,
       currency: currency.toUpperCase(),
+      appOrigin: origin,
     }).catch((err) => console.error("[Background Email Dispatch Error]:", err));
-
-    const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
-    const reviewUrl = `${origin}/review/${deliverable.reviewToken}`;
 
     return NextResponse.json(
       {
