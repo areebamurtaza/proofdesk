@@ -20,7 +20,7 @@ interface ReviewHeaderProps {
   onToggleCompareMode: () => void;
   onSelectVersion: (version: VersionItem) => void;
   onOpenApprovalModal: () => void;
-  onToggleUnlockedState: () => void;
+  onToggleUnlockedState?: () => void;
   onDownloadCleanFile: () => void;
 }
 
@@ -31,7 +31,6 @@ export function ReviewHeader({
   onToggleCompareMode,
   onSelectVersion,
   onOpenApprovalModal,
-  onToggleUnlockedState,
   onDownloadCleanFile,
 }: ReviewHeaderProps) {
   const formattedPrice = (deliverable.invoiceAmountCents / 100).toLocaleString("en-US", {
