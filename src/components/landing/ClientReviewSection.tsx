@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { MessageSquare, ArrowRight, CheckCircle2, Clock } from "lucide-react";
 import { motion } from "framer-motion";
+import { CampaignBannerArtboard } from "./DesignArtboards";
 
 export function ClientReviewSection() {
   const [selectedPin, setSelectedPin] = useState<number>(1);
@@ -90,11 +91,7 @@ export function ClientReviewSection() {
             {/* Visual Canvas (8 cols) */}
             <div className="md:col-span-8 p-6 sm:p-8 bg-[#F5F3EE] flex flex-col justify-between relative">
               <div className="relative w-full aspect-[16/10] rounded-xl border border-[#DDD8CF] shadow-sm overflow-hidden bg-slate-900 group">
-                <img
-                  src="https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=1600&q=80"
-                  alt="Apex Stationery Brand Asset"
-                  className="w-full h-full object-cover select-none"
-                />
+                <CampaignBannerArtboard className="w-full h-full" />
 
                 {/* Subtle dark gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />

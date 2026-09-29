@@ -1,9 +1,19 @@
-// filepath: src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, Fraunces } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "@/app/globals.css";
-const inter = Inter({ subsets: ["latin"] });
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ProofDesk — Sovereign Escrow Proofing",
@@ -38,8 +48,8 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en">
-        <body className={`${inter.className} bg-[#F8F6F1] text-[#171A1F] antialiased selection:bg-[#D7C3A5]/40 selection:text-[#0B1628]`}>
+      <html lang="en" className={`${plusJakarta.variable} ${fraunces.variable}`}>
+        <body className="font-sans bg-[#F8F6F1] text-[#171A1F] antialiased selection:bg-[#D7C3A5]/40 selection:text-[#0B1628]">
           {children}
         </body>
       </html>

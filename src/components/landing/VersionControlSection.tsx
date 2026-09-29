@@ -3,6 +3,12 @@
 import React, { useState } from "react";
 import { History, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  LogoConstructionArtboard,
+  CampaignBannerArtboard,
+  MonogramIdentityArtboard,
+  MasterBrandSystemArtboard,
+} from "./DesignArtboards";
 
 export function VersionControlSection() {
   const [selectedVersion, setSelectedVersion] = useState<number>(4);
@@ -16,8 +22,8 @@ export function VersionControlSection() {
       status: "Superseded",
       commentsCount: 8,
       changes: "Initial 3 artboard exploratory routes submitted.",
-      image: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1200&q=80",
-      description: "Concept Route 01: Acrylic abstract packaging exploration",
+      description: "Concept Route 01: Logo geometry & golden ratio grid matrix",
+      component: LogoConstructionArtboard,
     },
     {
       version: 2,
@@ -26,9 +32,9 @@ export function VersionControlSection() {
       creator: "Marcus Vance",
       status: "Revised",
       commentsCount: 5,
-      changes: "Selected Route B. Typography scaled up; logo spacing adjusted.",
-      image: "https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=1200&q=80",
-      description: "Concept Route 02: Typography and minimal layout matrix",
+      changes: "Selected Route B. Digital display ad campaign banner (1920x1080).",
+      description: "Concept Route 02: Digital display campaign banner with typography",
+      component: CampaignBannerArtboard,
     },
     {
       version: 3,
@@ -37,9 +43,9 @@ export function VersionControlSection() {
       creator: "Elena Rostova",
       status: "Changes Requested",
       commentsCount: 12,
-      changes: "Client requested darker background & Pantone CMYK alignment.",
-      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
-      description: "Iteration 03: Chromatic depth calibration with client feedback",
+      changes: "Client requested darker background & Pantone 871C metallic foil spec.",
+      description: "Iteration 03: Luxury interlocking monogram & hot foil stamp",
+      component: MonogramIdentityArtboard,
     },
     {
       version: 4,
@@ -49,8 +55,8 @@ export function VersionControlSection() {
       status: "Approved",
       commentsCount: 0,
       changes: "Final master release signed and verified for production.",
-      image: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80",
-      description: "Master Release: 3D Spatial packaging master with Pantone 405C swatches",
+      description: "Master Release: Master brand identity & multi-variant logo system",
+      component: MasterBrandSystemArtboard,
     },
   ];
 
@@ -169,39 +175,37 @@ export function VersionControlSection() {
             {/* Real Artwork Comparison Canvas Preview */}
             <div className="rounded-xl border border-[#DDD8CF] bg-[#F8F6F1] p-4 relative aspect-[16/9] flex items-center justify-center overflow-hidden">
               <div className="grid grid-cols-2 gap-3 w-full h-full">
-                {/* Left Side: Prior Version Visual */}
-                <div className="rounded-lg overflow-hidden border border-[#DDD8CF] bg-white relative group">
-                  <img
-                    src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=800&q=80"
-                    alt="Prior Version Checkpoint"
-                    className="w-full h-full object-cover filter grayscale contrast-125 opacity-70"
-                  />
-                  <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-mono text-white">
+                {/* Left Side: Prior Version Visual (Blueprint Grid) */}
+                <div className="rounded-lg overflow-hidden border border-[#DDD8CF] bg-[#090F1C] relative group">
+                  <div className="w-full h-full filter grayscale contrast-125 opacity-70">
+                    <LogoConstructionArtboard className="w-full h-full" />
+                  </div>
+                  <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-mono text-white z-20">
                     Prior &bull; V1
                   </div>
-                  <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono text-white/80 truncate">
-                    Exploratory Route
+                  <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono text-white/80 truncate z-20">
+                    Logo Geometry &amp; Grid Matrix
                   </div>
                 </div>
 
-                {/* Right Side: Current Selected Version Visual */}
-                <div className="rounded-lg overflow-hidden border-2 border-[#172B4D] bg-white relative group shadow-sm">
+                {/* Right Side: Current Selected Version Visual (Active Graphic Deliverable) */}
+                <div className="rounded-lg overflow-hidden border-2 border-[#172B4D] bg-[#090F1C] relative group shadow-sm">
                   <AnimatePresence mode="wait">
-                    <motion.img
-                      key={current.image}
-                      src={current.image}
-                      alt={current.description}
+                    <motion.div
+                      key={current.version}
                       initial={{ opacity: 0.6 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0.6 }}
-                      transition={{ duration: 0.25 }}
-                      className="w-full h-full object-cover"
-                    />
+                      transition={{ duration: 0.2 }}
+                      className="w-full h-full"
+                    >
+                      <current.component className="w-full h-full" />
+                    </motion.div>
                   </AnimatePresence>
-                  <div className="absolute top-2 right-2 bg-[#D7C3A5] text-[#0B1628] font-bold px-2 py-0.5 rounded text-[10px] font-mono">
+                  <div className="absolute top-2 right-2 bg-[#D7C3A5] text-[#0B1628] font-bold px-2 py-0.5 rounded text-[10px] font-mono z-20">
                     Active &bull; {current.tag}
                   </div>
-                  <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono text-white/90 truncate">
+                  <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded text-[10px] font-mono text-white/90 truncate z-20">
                     {current.description}
                   </div>
                 </div>

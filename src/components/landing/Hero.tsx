@@ -9,32 +9,36 @@ import { HeroProductVisual } from "./HeroProductVisual";
 export function Hero() {
   return (
     <section className="relative pt-36 pb-20 px-6 max-w-7xl mx-auto text-center font-sans">
-      {/* Decorative Warm Sand Accent Element */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-48 h-1 bg-[#D7C3A5]/40 rounded-full blur-[1px] pointer-events-none" />
+      {/* Outcrowd-Inspired Luminous Atmospheric Glow Orbs */}
+      <div className="absolute top-28 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] sm:w-[900px] h-[450px] bg-gradient-to-tr from-[#D7C3A5]/35 via-[#29466F]/15 to-transparent rounded-full blur-[120px] pointer-events-none -z-10" />
+      <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-80 h-80 bg-[#172B4D]/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
       {/* Small Eyebrow above headline */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#F0E7D8] border border-[#DDD8CF] text-[#172B4D] text-[11px] font-mono font-semibold tracking-widest uppercase mb-6"
+        className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#DDD8CF] text-[#172B4D] text-xs font-mono font-semibold tracking-wider uppercase mb-7 shadow-xs"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-[#D7C3A5]" />
-        <span>CLIENT REVIEW &amp; APPROVAL</span>
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span>SOVEREIGN ESCROW PROOFING v2.4</span>
       </motion.div>
 
-      {/* Main Headline */}
+      {/* Main Headline styled in Fraunces Serif */}
       <motion.h1
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
-        className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight text-[#171A1F] max-w-5xl mx-auto leading-[1.05]"
+        className="text-5xl sm:text-7xl lg:text-[84px] font-serif font-bold tracking-tight text-[#171A1F] max-w-5xl mx-auto leading-[1.06]"
       >
-        Get creative work <br />
-        <span className="text-[#172B4D] underline decoration-[#D7C3A5] decoration-wavy decoration-2 underline-offset-8">
-          approved without
+        Where creative work <br />
+        <span className="italic text-[#172B4D] relative">
+          gets approved
+          <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
+            <path d="M2 9C70 3 150 3 298 9" stroke="#D7C3A5" strokeWidth="4" strokeLinecap="round" />
+          </svg>
         </span>{" "}
-        the back-and-forth.
+        and paid without friction.
       </motion.h1>
 
       {/* Supporting Text */}
@@ -44,7 +48,7 @@ export function Hero() {
         transition={{ duration: 0.55, delay: 0.2, ease: "easeOut" }}
         className="mt-6 text-lg sm:text-xl text-[#667085] max-w-2xl mx-auto leading-relaxed"
       >
-        ProofDesk gives agencies and clients one focused place to review, comment, revise, and approve every deliverable.
+        ProofDesk gives agencies and clients one focused place to review, comment, revise, and approve every deliverable — backed by automated escrow protection.
       </motion.p>
 
       {/* Primary & Secondary CTA Buttons */}
@@ -56,17 +60,17 @@ export function Hero() {
       >
         <Link
           href="/dashboard"
-          className="w-full sm:w-auto px-7 py-3.5 rounded-lg bg-[#172B4D] hover:bg-[#0B1628] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+          className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
         >
-          <span>Start Reviewing</span>
+          <span>Open Studio Vault</span>
           <ArrowRight className="w-4 h-4" />
         </Link>
         <a
           href="#product"
-          className="w-full sm:w-auto px-7 py-3.5 rounded-lg bg-transparent hover:bg-white border border-[#DDD8CF] text-[#171A1F] text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white hover:bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] text-sm font-medium flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.98]"
         >
           <Eye className="w-4 h-4 text-[#667085]" />
-          <span>See How It Works</span>
+          <span>Explore Live Stage</span>
         </a>
       </motion.div>
 

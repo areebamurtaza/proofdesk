@@ -3,66 +3,75 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageSquare,
   ShieldCheck,
   Check,
   Clock,
   Layers,
   Sparkles,
-  ZoomIn,
+  Copy,
+  CheckCircle2,
+  Lock,
+  Unlock,
 } from "lucide-react";
+import {
+  LogoConstructionArtboard,
+  CampaignBannerArtboard,
+  MonogramIdentityArtboard,
+  MasterBrandSystemArtboard,
+} from "./DesignArtboards";
 
 interface VersionItem {
   num: number;
   label: string;
   date: string;
-  image: string;
   title: string;
   format: string;
   status: string;
+  component: React.ComponentType<{ className?: string }>;
 }
 
 export function HeroProductVisual() {
   const [selectedVersion, setSelectedVersion] = useState<number>(4);
   const [demoStatus, setDemoStatus] = useState<"CHANGES_REQUESTED" | "APPROVED">("CHANGES_REQUESTED");
   const [activePin, setActivePin] = useState<number>(1);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
   const versions: VersionItem[] = [
     {
       num: 1,
       label: "V1",
       date: "Oct 12",
-      image: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=1600&q=80",
-      title: "Exploratory Acrylic & Form System",
+      title: "Logo Construction & Vector Grid Matrix",
       format: "AI / SVG • 42 MB",
       status: "Superseded",
+      component: LogoConstructionArtboard,
     },
     {
       num: 2,
       label: "V2",
       date: "Oct 14",
-      image: "https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=1600&q=80",
-      title: "Stationery & Typography Matrix",
-      format: "AI / PDF / PNG • 58 MB",
+      title: "Digital Display Campaign Ad Banner (1920×1080)",
+      format: "AI / 300DPI PNG • 58 MB",
       status: "Revised",
+      component: CampaignBannerArtboard,
     },
     {
       num: 3,
       label: "V3",
       date: "Oct 15",
-      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80",
-      title: "Fluid Identity Architecture",
-      format: "SVG / PNG • 72 MB",
+      title: "Luxury Monogram & Pantone 871C Hot Foil Sheet",
+      format: "AI / PDF Die-Cut • 74 MB",
       status: "Changes Requested",
+      component: MonogramIdentityArtboard,
     },
     {
       num: 4,
       label: "V4",
       date: "Today",
-      image: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1600&q=80",
-      title: "Aura Spatial 3D Identity Master",
-      format: "AI / SVG / 300DPI PNG • 94 MB",
+      title: "Master Brand Identity & Multi-Variant System",
+      format: "Lossless Master Suite • 98 MB",
       status: demoStatus === "APPROVED" ? "Approved" : "Active Review",
+      component: MasterBrandSystemArtboard,
     },
   ];
 
@@ -71,28 +80,28 @@ export function HeroProductVisual() {
   const pins = [
     {
       id: 1,
-      x: "36%",
-      y: "34%",
+      x: "34%",
+      y: "32%",
       author: "Marcus Vance",
       role: "Art Director",
       time: "10:14 AM",
-      text: "Increase optical breathing room between the primary wordmark and geometric apex. Calibrate tight kerning for large-format print.",
+      text: "Increase optical breathing room between primary wordmark and geometric apex. Calibrate tight kerning for large-format print.",
       status: "OPEN",
     },
     {
       id: 2,
-      x: "68%",
-      y: "42%",
+      x: "66%",
+      y: "40%",
       author: "Elena Rostova",
       role: "Client Lead",
       time: "10:35 AM",
-      text: "The chromatic gradient balance is exceptional on the metallic packaging mockup. Approved for test proofing.",
+      text: "The chromatic gradient balance is exceptional on the metallic packaging mockup. Approved for master packaging proofing.",
       status: "RESOLVED",
     },
     {
       id: 3,
       x: "52%",
-      y: "74%",
+      y: "72%",
       author: "Sarah Chen",
       role: "Senior Designer",
       time: "11:02 AM",
@@ -103,278 +112,274 @@ export function HeroProductVisual() {
 
   const currentPin = pins.find((p) => p.id === activePin) || pins[0];
 
+  const handleCopyDemoLink = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText("https://proofdesk.io/review/aura_v4_910x");
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   return (
-    <div className="w-full max-w-6xl mx-auto rounded-2xl border border-[#DDD8CF] bg-white shadow-[0_24px_64px_rgba(11,22,40,0.08)] overflow-hidden text-left transition-all">
-      {/* ── Sub-Nav: Deep Navy Frame / Workspace Bar ── */}
-      <div className="bg-[#0B1628] text-white px-5 py-3 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+    <div className="relative w-full max-w-6xl mx-auto font-sans select-none">
+      {/* ── Atmospheric Glow Backdrop behind the Stage ── */}
+      <div className="absolute -inset-4 bg-gradient-to-r from-[#D7C3A5]/25 via-[#29466F]/15 to-[#D7C3A5]/20 rounded-3xl blur-2xl -z-10 pointer-events-none" />
+
+      {/* ── FLOATING GLASS HUD CARD 1: Top-Left Escrow Lock Pill ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: [0, -4, 0] }}
+        transition={{
+          opacity: { duration: 0.5 },
+          y: { repeat: Infinity, duration: 4.5, ease: "easeInOut" },
+        }}
+        className="hidden sm:flex absolute -top-5 left-4 lg:left-8 z-30 items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-[0_12px_32px_rgba(11,22,40,0.12)]"
+      >
+        <div className="w-8 h-8 rounded-xl bg-[#172B4D]/10 border border-[#172B4D]/15 flex items-center justify-center text-[#172B4D]">
+          {demoStatus === "APPROVED" ? (
+            <Unlock className="w-4 h-4 text-emerald-600" />
+          ) : (
+            <Lock className="w-4 h-4 text-[#B7791F]" />
+          )}
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#171A1F]">
+            <span>Escrow Vault:</span>
+            <span className="font-mono text-sm text-[#172B4D] font-extrabold">$4,500.00</span>
           </div>
-          <div className="h-4 w-px bg-white/15 mx-1" />
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-semibold text-white truncate max-w-xs sm:max-w-md">
-              {currentVersion.title}
-            </span>
-            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/10 text-[#D7C3A5]">
-              {currentVersion.format}
-            </span>
-          </div>
+          <p className="text-[10px] text-[#667085] flex items-center gap-1">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                demoStatus === "APPROVED" ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
+              }`}
+            />
+            <span>{demoStatus === "APPROVED" ? "Funds Released to Studio" : "Stripe Escrow Locked"}</span>
+          </p>
         </div>
+      </motion.div>
 
-        {/* Right Status Switcher in Top Bar */}
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-[11px] font-mono text-[#D7C3A5]">
-            Client Decision:
-          </span>
-          <button
-            onClick={() =>
-              setDemoStatus(demoStatus === "APPROVED" ? "CHANGES_REQUESTED" : "APPROVED")
-            }
-            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
-              demoStatus === "APPROVED"
-                ? "bg-[#2F6B4F] text-white ring-2 ring-emerald-400/40"
-                : "bg-[#B7791F] text-white ring-2 ring-amber-400/40"
-            }`}
-          >
-            {demoStatus === "APPROVED" ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>✓ APPROVED &amp; SEALED</span>
-              </>
-            ) : (
-              <>
-                <Clock className="w-3.5 h-3.5" />
-                <span>Changes Requested</span>
-              </>
-            )}
-          </button>
+      {/* ── FLOATING GLASS HUD CARD 2: Top-Right Zero-Auth Review Token Chip ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: [0, 4, 0] }}
+        transition={{
+          opacity: { duration: 0.5, delay: 0.1 },
+          y: { repeat: Infinity, duration: 5, ease: "easeInOut" },
+        }}
+        className="hidden sm:flex absolute -top-5 right-4 lg:right-8 z-30 items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-[0_12px_32px_rgba(11,22,40,0.12)] cursor-pointer hover:bg-white transition-all"
+        onClick={handleCopyDemoLink}
+      >
+        <div className="w-7 h-7 rounded-lg bg-[#F0E7D8] flex items-center justify-center text-[#172B4D]">
+          <Sparkles className="w-3.5 h-3.5 text-[#B7791F]" />
         </div>
-      </div>
-
-      {/* ── Linear Version Lineage Bar: V1 → V2 → V3 → V4 ── */}
-      <div className="bg-[#F8F6F1] border-b border-[#DDD8CF] px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <span className="text-[#667085] uppercase text-[10px] tracking-wider">
-            Version Lineage:
-          </span>
-          <div className="flex items-center gap-1.5">
-            {versions.map((v, i) => (
-              <React.Fragment key={v.num}>
-                <button
-                  onClick={() => setSelectedVersion(v.num)}
-                  className={`px-3 py-1 rounded text-xs font-bold transition-all ${
-                    selectedVersion === v.num
-                      ? "bg-[#172B4D] text-[#D7C3A5] shadow-xs"
-                      : "bg-white border border-[#DDD8CF] text-[#171A1F] hover:bg-[#F0E7D8]"
-                  }`}
-                >
-                  {v.label}
-                </button>
-                {i < versions.length - 1 && (
-                  <span className="text-[#DDD8CF] text-[10px]">&bull;</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
+        <div className="text-left">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-[#667085]">Zero-Auth Client Link</p>
+          <p className="text-xs font-mono font-semibold text-[#171A1F]">proofdesk.io/review/aura_v4</p>
         </div>
+        <button
+          className="ml-1 p-1.5 rounded-md hover:bg-[#F8F6F1] text-[#667085] hover:text-[#171A1F] transition-colors"
+          title="Copy demo review link"
+        >
+          {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+      </motion.div>
 
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="text-[#667085]">Active Checkpoint:</span>
-          <span className="font-bold text-[#172B4D]">{currentVersion.label} ({currentVersion.date})</span>
-          <span className="w-1 h-1 rounded-full bg-[#DDD8CF]" />
-          <span className="text-[#667085]">3 Spatial Pins</span>
-        </div>
-      </div>
-
-      {/* ── Main Canvas & Inspector Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
-        {/* Left Side: Real Graphic Design Deliverable Canvas (8 cols) */}
-        <div className="lg:col-span-8 p-5 sm:p-7 bg-[#0B1628]/[0.02] flex flex-col justify-between relative overflow-hidden">
-          {/* Subtle Canvas Dot Grid */}
-          <div className="absolute inset-0 bg-[radial-gradient(#DDD8CF_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none opacity-50" />
-
-          {/* Canvas Sub-Header HUD */}
-          <div className="relative z-10 flex items-center justify-between pb-3 border-b border-[#DDD8CF]/70 text-xs">
-            <div className="flex items-center gap-2 font-mono text-[#667085]">
-              <Layers className="w-3.5 h-3.5 text-[#172B4D]" />
-              <span className="truncate">Canvas 100% &bull; 3840 &times; 2400 @ 300 DPI</span>
+      {/* ── MAIN STAGE CONTAINER ── */}
+      <div className="w-full rounded-3xl border border-[#DDD8CF] bg-white shadow-[0_28px_80px_rgba(11,22,40,0.1)] overflow-hidden text-left transition-all">
+        {/* Deep Navy Top Frame Bar */}
+        <div className="bg-[#0B1628] text-white px-5 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b border-[#172B4D]">
+          {/* Left: Window controls & active file specs */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
             </div>
+            <div className="h-4 w-px bg-white/20 mx-1" />
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-white border border-[#DDD8CF] text-[#172B4D]">
-                <Sparkles className="w-2.5 h-2.5 text-[#B7791F]" />
-                Interactive Pins Live
+              <span className="font-serif font-bold text-xs sm:text-sm text-white tracking-tight truncate max-w-xs sm:max-w-md">
+                {currentVersion.title}
+              </span>
+              <span className="hidden md:inline font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/10 text-[#D7C3A5]">
+                {currentVersion.format}
               </span>
             </div>
           </div>
 
-          {/* Genuine Creative Design Asset Viewport */}
-          <div className="relative z-10 my-4 mx-auto w-full aspect-[16/10] rounded-xl border border-[#DDD8CF] shadow-lg overflow-hidden bg-slate-900 group">
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={currentVersion.image}
-                src={currentVersion.image}
-                alt={currentVersion.title}
-                initial={{ opacity: 0.4, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0.4 }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
-                className="w-full h-full object-cover select-none"
-              />
-            </AnimatePresence>
-
-            {/* Subtle Gradient Vignette Over Real Visual */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
-
-            {/* Bottom Overlay Info Tag */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] font-mono text-white/90 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-lg pointer-events-none">
-              <span className="truncate">{currentVersion.title}</span>
-              <span className="text-[#D7C3A5] font-semibold shrink-0 ml-2">Click pin to review</span>
-            </div>
-
-            {/* ── Interactive Pins Placed on Creative Asset ── */}
-            {pins.map((pin) => {
-              const isSelected = activePin === pin.id;
-              return (
-                <div
-                  key={pin.id}
-                  style={{ top: pin.y, left: pin.x }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
-                >
-                  {/* Ping Animation Indicator */}
-                  {isSelected && (
-                    <span className="absolute -inset-1 rounded-full bg-[#D7C3A5] animate-ping opacity-75 pointer-events-none" />
-                  )}
-
-                  <button
-                    onClick={() => setActivePin(pin.id)}
-                    className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all shadow-md active:scale-95 ${
-                      isSelected
-                        ? "bg-[#D7C3A5] text-[#0B1628] ring-4 ring-white/60 scale-110"
-                        : "bg-[#172B4D] text-white hover:scale-110 hover:bg-[#0B1628]"
-                    }`}
-                    title={`Pin 0${pin.id}: ${pin.author}`}
-                  >
-                    {pin.id}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Canvas Bottom Quick Guide */}
-          <div className="relative z-10 flex items-center justify-between text-xs text-[#667085] pt-1">
-            <span className="flex items-center gap-1.5">
-              <ZoomIn className="w-3.5 h-3.5 text-[#172B4D]" />
-              <span>Click numbered pins or version checkpoints to review changes</span>
-            </span>
-            <span className="font-mono text-[11px] text-[#172B4D] font-semibold">
-              Pixel Accuracy &bull; 100%
-            </span>
+          {/* Right: Interactive One-Click Approval Switcher */}
+          <div className="flex items-center gap-2">
+            <span className="hidden lg:inline text-[11px] font-mono text-[#DDD8CF]/80">Client Sign-Off:</span>
+            <button
+              onClick={() =>
+                setDemoStatus(demoStatus === "APPROVED" ? "CHANGES_REQUESTED" : "APPROVED")
+              }
+              className={`text-xs font-semibold px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 ${
+                demoStatus === "APPROVED"
+                  ? "bg-[#2F6B4F] text-white ring-2 ring-emerald-400/40"
+                  : "bg-[#172B4D] hover:bg-[#29466F] text-[#D7C3A5] border border-[#29466F]"
+              }`}
+            >
+              {demoStatus === "APPROVED" ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>✓ APPROVED &amp; SEALED</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-3.5 h-3.5 text-[#D7C3A5]" />
+                  <span>Click to Simulate Sign-off</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Right Side: Comments Inspector Panel (4 cols) */}
-        <div className="lg:col-span-4 p-6 bg-white border-t lg:border-t-0 lg:border-l border-[#DDD8CF] flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#DDD8CF]">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#172B4D]" />
-                <h4 className="text-sm font-bold text-[#171A1F]">Pinpoint Comments</h4>
+        {/* ── Central Creative Canvas Viewport with Overlapping HUD ── */}
+        <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full bg-[#0B1628]/95 overflow-hidden group">
+          {/* Genuine Creative Design Asset */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentVersion.num}
+              initial={{ opacity: 0.4, scale: 0.99 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0.4 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="w-full h-full"
+            >
+              <currentVersion.component className="w-full h-full" />
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Atmospheric Vignette & Subtle Watermark Overlay (Only when in proofing state) */}
+          <div
+            className={`absolute inset-0 transition-opacity duration-300 pointer-events-none ${
+              demoStatus === "APPROVED" ? "bg-black/10" : "bg-black/30"
+            }`}
+          />
+
+          {demoStatus !== "APPROVED" && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+              <span className="text-4xl sm:text-6xl lg:text-7xl font-mono font-black text-white uppercase tracking-[0.25em] -rotate-12 select-none">
+                PROOFDESK &bull; ESCROW
+              </span>
+            </div>
+          )}
+
+          {/* Top Stage Specs Ribbon */}
+          <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-white/90 pointer-events-none">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20">
+              <Layers className="w-3 h-3 text-[#D7C3A5]" />
+              <span>Checkpoint: {currentVersion.label} ({currentVersion.date})</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>3 Spatial Review Coordinates</span>
+            </div>
+          </div>
+
+          {/* ── Interactive Coordinate Pins on Artwork ── */}
+          {pins.map((pin) => {
+            const isSelected = activePin === pin.id;
+            return (
+              <div
+                key={pin.id}
+                style={{ top: pin.y, left: pin.x }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer"
+              >
+                {/* Pulsing ring animation */}
+                {isSelected && (
+                  <span className="absolute -inset-2 rounded-full bg-[#D7C3A5] animate-ping opacity-75 pointer-events-none" />
+                )}
+
+                <button
+                  onClick={() => setActivePin(pin.id)}
+                  className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all shadow-xl active:scale-95 ${
+                    isSelected
+                      ? "bg-[#D7C3A5] text-[#0B1628] ring-4 ring-white/80 scale-110"
+                      : "bg-[#172B4D] text-white hover:scale-110 hover:bg-[#0B1628] ring-2 ring-white/40"
+                  }`}
+                  title={`Pin 0${pin.id}: ${pin.author}`}
+                >
+                  {pin.id}
+                </button>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#F0E7D8] text-[#172B4D]">
+            );
+          })}
+
+          {/* ── FLOATING GLASS HUD CARD 3 (Bottom-Left): Version Lineage Controller ── */}
+          <div className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 p-1.5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/20 shadow-xl">
+            <span className="hidden sm:inline text-[10px] font-mono text-[#DDD8CF]/80 uppercase px-2 font-semibold">
+              Lineage:
+            </span>
+            {versions.map((v) => (
+              <button
+                key={v.num}
+                onClick={() => setSelectedVersion(v.num)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all ${
+                  selectedVersion === v.num
+                    ? "bg-[#D7C3A5] text-[#0B1628] shadow-sm scale-105"
+                    : "text-white/80 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── FLOATING GLASS HUD CARD 4 (Bottom-Right): Pinpoint Inspector ── */}
+          <motion.div
+            key={currentPin.id}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="absolute bottom-4 right-4 z-20 max-w-[280px] sm:max-w-sm p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-[0_16px_40px_rgba(11,22,40,0.18)]"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#DDD8CF]/60">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[#172B4D] text-[#D7C3A5] flex items-center justify-center font-mono text-[10px] font-bold">
+                  {currentPin.author.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#171A1F] leading-none">{currentPin.author}</p>
+                  <p className="text-[10px] text-[#667085] mt-0.5">{currentPin.role}</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#F0E7D8] text-[#172B4D]">
                 Pin 0{currentPin.id}
               </span>
             </div>
 
-            {/* Active Selected Comment Card */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentPin.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="p-4 rounded-xl bg-[#F8F6F1] border border-[#DDD8CF] space-y-3"
+            <p className="text-xs text-[#171A1F] leading-relaxed my-2.5 line-clamp-2">
+              &ldquo;{currentPin.text}&rdquo;
+            </p>
+
+            <div className="flex items-center justify-between text-[10px] font-mono pt-1 text-[#667085]">
+              <span>Status</span>
+              <span
+                className={`font-bold px-2 py-0.5 rounded-full ${
+                  currentPin.status === "RESOLVED"
+                    ? "bg-emerald-50 text-[#2F6B4F] border border-emerald-200"
+                    : "bg-amber-50 text-[#B7791F] border border-amber-200"
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-[#172B4D] text-[#D7C3A5] flex items-center justify-center font-mono text-[10px] font-bold">
-                      {currentPin.author.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-[#171A1F]">{currentPin.author}</p>
-                      <p className="text-[10px] text-[#667085]">{currentPin.role}</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-[#667085]">{currentPin.time}</span>
-                </div>
-
-                <p className="text-xs text-[#171A1F] leading-relaxed">
-                  &ldquo;{currentPin.text}&rdquo;
-                </p>
-
-                <div className="pt-2 border-t border-[#DDD8CF] flex items-center justify-between text-[10px] font-mono">
-                  <span className="text-[#667085]">Review State</span>
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded ${
-                      currentPin.status === "RESOLVED"
-                        ? "bg-emerald-50 text-[#2F6B4F] border border-emerald-200"
-                        : "bg-amber-50 text-[#B7791F] border border-amber-200"
-                    }`}
-                  >
-                    {currentPin.status}
-                  </span>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-
-            {/* All Pins Quick Feed */}
-            <div className="space-y-1.5 pt-2">
-              <p className="text-[10px] font-mono uppercase tracking-wider text-[#667085]">
-                Deliverable Pins ({pins.length}):
-              </p>
-              {pins.map((pin) => (
-                <button
-                  key={pin.id}
-                  onClick={() => setActivePin(pin.id)}
-                  className={`w-full text-left p-2.5 rounded-lg text-xs transition-all flex items-center justify-between ${
-                    activePin === pin.id
-                      ? "bg-[#172B4D] text-white font-semibold shadow-xs"
-                      : "bg-[#F8F6F1] hover:bg-[#F0E7D8] text-[#171A1F] border border-[#DDD8CF]"
-                  }`}
-                >
-                  <span className="truncate pr-2">
-                    0{pin.id}. {pin.author} ({pin.role})
-                  </span>
-                  <span
-                    className={`font-mono text-[9px] px-1.5 py-0.5 rounded font-bold ${
-                      activePin === pin.id
-                        ? "bg-white/20 text-[#D7C3A5]"
-                        : "bg-white text-[#667085]"
-                    }`}
-                  >
-                    {pin.status}
-                  </span>
-                </button>
-              ))}
+                {currentPin.status}
+              </span>
             </div>
+          </motion.div>
+        </div>
+
+        {/* ── Bottom Telemetry Ledger Strip ── */}
+        <div className="bg-[#F8F6F1] px-5 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs border-t border-[#DDD8CF]">
+          <div className="flex items-center gap-2 text-[#667085]">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#172B4D]" />
+            <span className="font-mono text-[11px]">
+              SHA-256: <span className="text-[#171A1F] font-bold">9b40...21799</span> &bull; Cryptographically Sealed
+            </span>
           </div>
 
-          {/* Bottom Cryptographic Seal Callout */}
-          <div className="p-4 rounded-xl bg-[#0B1628] text-white space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-[#D7C3A5]">
-                Verified Escrow
-              </span>
-              <ShieldCheck className="w-4 h-4 text-[#D7C3A5]" />
-            </div>
-            <p className="text-xs font-bold text-white">Immutable Decision Record</p>
-            <p className="text-[11px] text-white/70 leading-relaxed font-sans">
-              Client reviews are signed with tokenized SHA-256 hashes. Clean deliverables unlock exclusively upon approval.
-            </p>
+          <div className="flex items-center gap-2 font-mono text-[11px] text-[#667085]">
+            <span className="hidden sm:inline">Zero-Login Client Proofing</span>
+            <span className="w-1 h-1 rounded-full bg-[#DDD8CF]" />
+            <span className="text-[#2F6B4F] font-bold">Escrow Verified</span>
           </div>
         </div>
       </div>
