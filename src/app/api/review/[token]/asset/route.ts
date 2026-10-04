@@ -117,10 +117,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     let detectedMime = targetVersion.mimeType || "application/octet-stream";
 
     if (isR2Configured()) {
-      // For unpaid deliverable, fetch preview key first; fall back to clean key
-      const keyToFetch = deliverable.isUnlocked
-        ? targetVersion.cleanFileKey
-        : targetVersion.previewKey || targetVersion.cleanFileKey;
+      // Prefer clean master file so server-side burnWatermark generates a single, pristine watermark
+      const keyToFetch = targetVersion.cleanFileKey || targetVersion.previewKey;
 
       try {
         const r2Result = await getR2ObjectBuffer(keyToFetch);
@@ -128,10 +126,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         detectedMime = r2Result.contentType || detectedMime;
       } catch (r2Err) {
         console.error(`[R2 Asset Fetch Failed for key ${keyToFetch}]:`, r2Err);
-        // Fallback to clean key if preview key failed
-        if (!deliverable.isUnlocked && targetVersion.cleanFileKey && keyToFetch !== targetVersion.cleanFileKey) {
+        // Fallback to previewKey if cleanFileKey failed
+        if (targetVersion.previewKey && keyToFetch !== targetVersion.previewKey) {
           try {
-            const fallbackResult = await getR2ObjectBuffer(targetVersion.cleanFileKey);
+            const fallbackResult = await getR2ObjectBuffer(targetVersion.previewKey);
             assetBuffer = fallbackResult.buffer;
             detectedMime = fallbackResult.contentType || detectedMime;
           } catch (fallbackErr) {
@@ -142,18 +140,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     } else {
       // Local Storage Fallback
       const storageDir = path.join(process.cwd(), ".storage");
-      const keyToFetch = deliverable.isUnlocked
-        ? targetVersion.cleanFileKey
-        : targetVersion.previewKey || targetVersion.cleanFileKey;
+      const keyToFetch = targetVersion.cleanFileKey || targetVersion.previewKey;
 
       try {
         const filePath = path.join(storageDir, keyToFetch);
         assetBuffer = await fs.readFile(filePath);
       } catch {
-        // Try clean key if preview key not found
         try {
-          const fallbackPath = path.join(storageDir, targetVersion.cleanFileKey);
-          assetBuffer = await fs.readFile(fallbackPath);
+          if (targetVersion.previewKey) {
+            const fallbackPath = path.join(storageDir, targetVersion.previewKey);
+            assetBuffer = await fs.readFile(fallbackPath);
+          }
         } catch (localErr) {
           console.error("[Local Storage Asset Read Failed]:", localErr);
         }

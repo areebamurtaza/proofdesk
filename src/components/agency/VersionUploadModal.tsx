@@ -168,56 +168,35 @@ async function generateWatermarkedPreviewBlob(file: File): Promise<Blob> {
       ctx.drawImage(img, 0, 0, width, height);
 
       // 2. BURN IN WATERMARK PERMANENTLY AT PIXEL LEVEL
-      // Diagonal repeating tiled watermark across the entire image
+      // Clean, well-spaced diagonal tiled watermark across the entire image
       ctx.save();
       const diagonal = Math.sqrt(width * width + height * height);
       ctx.translate(width / 2, height / 2);
-      ctx.rotate((-28 * Math.PI) / 180);
+      ctx.rotate((-26 * Math.PI) / 180);
 
-      const stepX = Math.max(260, Math.round(width * 0.22));
-      const stepY = Math.max(100, Math.round(height * 0.12));
-      const fontSize = Math.max(16, Math.min(28, Math.round(width * 0.018)));
+      const stepX = Math.max(480, Math.round(width * 0.40));
+      const stepY = Math.max(220, Math.round(height * 0.22));
+      const fontSize = Math.max(16, Math.min(26, Math.round(width * 0.016)));
 
-      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.font = `700 ${fontSize}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
       for (let y = -diagonal; y < diagonal; y += stepY) {
         for (let x = -diagonal; x < diagonal; x += stepX) {
-          // Dark drop shadow for contrast on light backgrounds
-          ctx.strokeStyle = "rgba(0, 0, 0, 0.45)";
-          ctx.lineWidth = 2.5;
+          // Subtle drop shadow for contrast on light backgrounds
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.22)";
+          ctx.lineWidth = 1.2;
           ctx.strokeText("PROOFDESK • UNPAID PREVIEW", x, y);
 
-          // White text fill for contrast on dark backgrounds
-          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          // Subtle white text fill for contrast on dark backgrounds
+          ctx.fillStyle = "rgba(255, 255, 255, 0.26)";
           ctx.fillText("PROOFDESK • UNPAID PREVIEW", x, y);
         }
       }
       ctx.restore();
 
-      // 3. Central High-Visibility Security Banner
-      ctx.save();
-      const bannerHeight = Math.max(36, Math.round(height * 0.055));
-      ctx.fillStyle = "rgba(11, 22, 40, 0.88)";
-      ctx.fillRect(0, height / 2 - bannerHeight / 2, width, bannerHeight);
-
-      ctx.strokeStyle = "rgba(215, 195, 165, 0.6)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(0, height / 2 - bannerHeight / 2, width, bannerHeight);
-
-      ctx.font = `bold ${Math.max(12, Math.round(bannerHeight * 0.42))}px monospace`;
-      ctx.fillStyle = "#D7C3A5";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(
-        "ESCROW LOCKED • UNPAID DRAFT • UNAUTHORIZED FOR PRODUCTION",
-        width / 2,
-        height / 2
-      );
-      ctx.restore();
-
-      // 4. Compress to 80% lossy JPEG so clean master pixels cannot be reconstructed
+      // 3. Compress to 80% lossy JPEG so clean master pixels cannot be reconstructed
       canvas.toBlob((blob) => resolve(blob || file), "image/jpeg", 0.8);
     };
 

@@ -41,35 +41,29 @@ export async function burnWatermark(inputBuffer: Buffer): Promise<Buffer> {
   const width = resizedMeta.width || targetWidth;
   const height = resizedMeta.height || targetHeight;
 
-  // 2. Build SVG overlay matching the EXACT dimensions of the resized image
+  // 2. Build elegant SVG overlay matching the EXACT dimensions of the resized image
+  // Clean, well-spaced diagonal tiles with subtle opacity so design details remain legible
   const diagonal = Math.sqrt(width * width + height * height);
-  const stepX = Math.max(260, Math.round(width * 0.22));
-  const stepY = Math.max(100, Math.round(height * 0.12));
-  const fontSize = Math.max(16, Math.min(28, Math.round(width * 0.018)));
-  const bannerHeight = Math.max(38, Math.round(height * 0.055));
-  const bannerFontSize = Math.max(12, Math.round(bannerHeight * 0.4));
+  const stepX = Math.max(480, Math.round(width * 0.40));
+  const stepY = Math.max(220, Math.round(height * 0.22));
+  const fontSize = Math.max(16, Math.min(26, Math.round(width * 0.016)));
 
   let textElements = "";
   for (let y = -diagonal; y < diagonal; y += stepY) {
     for (let x = -diagonal; x < diagonal; x += stepX) {
       textElements += `
-        <text x="${x}" y="${y}" fill="rgba(0,0,0,0.45)" stroke="rgba(0,0,0,0.6)" stroke-width="2" font-size="${fontSize}" font-family="monospace" font-weight="900" text-anchor="middle">PROOFDESK • UNPAID PREVIEW</text>
-        <text x="${x}" y="${y}" fill="rgba(255,255,255,0.65)" font-size="${fontSize}" font-family="monospace" font-weight="900" text-anchor="middle">PROOFDESK • UNPAID PREVIEW</text>
+        <text x="${x}" y="${y}" fill="rgba(0,0,0,0.20)" stroke="rgba(0,0,0,0.28)" stroke-width="1.2" font-size="${fontSize}" font-family="system-ui, -apple-system, sans-serif" font-weight="700" letter-spacing="2" text-anchor="middle">PROOFDESK • UNPAID PREVIEW</text>
+        <text x="${x}" y="${y}" fill="rgba(255,255,255,0.26)" font-size="${fontSize}" font-family="system-ui, -apple-system, sans-serif" font-weight="700" letter-spacing="2" text-anchor="middle">PROOFDESK • UNPAID PREVIEW</text>
       `;
     }
   }
 
   const svgWatermark = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <!-- Repeating diagonal tiled watermark -->
-      <g transform="translate(${width / 2}, ${height / 2}) rotate(-28)">
+      <!-- Clean, subtle diagonal tiled watermark -->
+      <g transform="translate(${width / 2}, ${height / 2}) rotate(-26)">
         ${textElements}
       </g>
-      <!-- Center Security Banner -->
-      <rect x="0" y="${height / 2 - bannerHeight / 2}" width="${width}" height="${bannerHeight}" fill="#0B1628" fill-opacity="0.88" stroke="#D7C3A5" stroke-width="1.5" />
-      <text x="${width / 2}" y="${height / 2 + bannerFontSize * 0.35}" fill="#D7C3A5" font-size="${bannerFontSize}" font-family="monospace" font-weight="bold" text-anchor="middle" letter-spacing="1.5">
-        ESCROW LOCKED • UNPAID DRAFT • UNAUTHORIZED FOR PRODUCTION
-      </text>
     </svg>
   `;
 

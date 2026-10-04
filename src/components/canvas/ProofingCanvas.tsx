@@ -300,15 +300,10 @@ export default function ProofingCanvas({
     }
   };
 
-  // Render Watermark
+  // Render Watermark: Server image already has indelibly burned-in watermarks.
+  // We keep only the subtle corner security tag to avoid double watermarking.
   const renderWatermark = () => {
     if (isUnlocked) return null;
-
-    const diagonal = Math.sqrt(naturalWidth * naturalWidth + naturalHeight * naturalHeight);
-    const angle = -28;
-
-    const primaryFontSize = Math.max(16, Math.min(32, naturalWidth * 0.022));
-    const secondaryFontSize = Math.max(14, Math.min(26, naturalWidth * 0.018));
 
     return (
       <Group
@@ -317,43 +312,11 @@ export default function ProofingCanvas({
         }}
         listening={false}
       >
-        <Group x={naturalWidth * 0.5} y={naturalHeight * 0.35} rotation={angle}>
-          <Text
-            text="PROOFDESK PREVIEW • UNPAID DRAFT"
-            fontSize={primaryFontSize}
-            fontFamily="monospace"
-            fontStyle="bold"
-            letterSpacing={4}
-            fill="rgba(255, 255, 255, 0.28)"
-            stroke="rgba(0, 0, 0, 0.35)"
-            strokeWidth={1}
-            offsetX={diagonal * 0.28}
-            offsetY={primaryFontSize / 2}
-            listening={false}
-          />
-        </Group>
-
-        <Group x={naturalWidth * 0.5} y={naturalHeight * 0.68} rotation={angle}>
-          <Text
-            text="CONFIDENTIAL • PENDING FINAL APPROVAL"
-            fontSize={secondaryFontSize}
-            fontFamily="monospace"
-            fontStyle="bold"
-            letterSpacing={4}
-            fill="rgba(255, 255, 255, 0.28)"
-            stroke="rgba(0, 0, 0, 0.35)"
-            strokeWidth={1}
-            offsetX={diagonal * 0.28}
-            offsetY={secondaryFontSize / 2}
-            listening={false}
-          />
-        </Group>
-
         <Group x={16} y={Math.max(16, naturalHeight - 36)}>
           <Rect
             width={210}
             height={24}
-            fill="rgba(0, 0, 0, 0.55)"
+            fill="rgba(0, 0, 0, 0.45)"
             cornerRadius={4}
           />
           <Text
