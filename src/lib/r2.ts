@@ -231,3 +231,33 @@ export async function verifyR2ObjectExists(key: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Reads an object from Cloudflare R2 into a Node Buffer.
+ */
+export async function getR2ObjectBuffer(key: string): Promise<{ buffer: Buffer; contentType: string }> {
+  if (!isR2Configured()) {
+    throw new Error("Cloudflare R2 is not configured.");
+  }
+
+  const command = new GetObjectCommand({
+    Bucket: getBucketName(),
+    Key: key,
+  });
+
+  const res = await r2Client.send(command);
+  const stream = res.Body;
+  if (!stream) {
+    throw new Error(`Empty body returned for R2 object: ${key}`);
+  }
+
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+    chunks.push(chunk instanceof Uint8Array ? chunk : Buffer.from(chunk));
+  }
+
+  return {
+    buffer: Buffer.concat(chunks),
+    contentType: res.ContentType || "application/octet-stream",
+  };
+}

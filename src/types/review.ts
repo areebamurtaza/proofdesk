@@ -84,8 +84,7 @@ export const MOCK_DELIVERABLE: DeliverableReviewData = {
       fileName: "aura_system_v1.png",
       fileSize: 3450000,
       mimeType: "image/png",
-      previewUrl:
-        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop",
+      previewUrl: "/api/review/demo-token/asset?version=1",
       width: 1600,
       height: 1000,
       changeLog: "Initial draft export from Figma",
@@ -111,8 +110,7 @@ export const MOCK_DELIVERABLE: DeliverableReviewData = {
       fileName: "aura_system_v2.png",
       fileSize: 3820000,
       mimeType: "image/png",
-      previewUrl:
-        "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?q=80&w=1600&auto=format&fit=crop",
+      previewUrl: "/api/review/demo-token/asset?version=2",
       width: 1600,
       height: 1000,
       changeLog: "Contrast boosted by 30% and color values mapped to WCAG AAA standard.",

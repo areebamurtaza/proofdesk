@@ -40,6 +40,17 @@ export async function GET(
 
     if (!deliverable) {
       if (token === "demo-token") {
+        const isUnlocked = searchParams.get("unlocked") === "true";
+        if (!isUnlocked) {
+          return NextResponse.json(
+            {
+              error:
+                "Payment required. Final clean master assets remain locked in escrow until payment settles.",
+            },
+            { status: 403 }
+          );
+        }
+
         const demoDownloadUrl =
           "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1600&auto=format&fit=crop";
         const wantsJson =

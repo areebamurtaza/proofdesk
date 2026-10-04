@@ -1,7 +1,6 @@
 // filepath: src/app/api/review/[token]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { isR2Configured, generatePresignedPreviewUrl } from "@/lib/r2";
 import { MOCK_DELIVERABLE } from "@/types/review";
 
 export const dynamic = "force-dynamic";
@@ -105,48 +104,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })
       .catch((err) => console.error("[Review Access Log Error]:", err));
 
-    // Ephemeral preview URLs (300s TTL) for canvas proofing
-    // For browser-renderable images, serve the clean master upon unlock; otherwise keep the canvas raster.
-    const mappedVersions = await Promise.all(
-      (deliverable.versions || []).map(async (ver) => {
-        const isRenderableImage =
-          ver.mimeType?.startsWith("image/") ||
-          /\.(png|jpe?g|webp|svg)$/i.test(ver.fileName);
-
-        // PDFs and non-image masters cannot be drawn inside an HTML <img> tag on canvas,
-        // so we must use the rasterized previewKey for canvas proofing.
-        const shouldUseCleanFile = deliverable.isUnlocked && isRenderableImage;
-        const targetKey = shouldUseCleanFile ? ver.cleanFileKey : ver.previewKey;
-        const targetMime = shouldUseCleanFile ? ver.mimeType : "image/jpeg";
-
-        let previewUrl = "";
-        let fallbackPreviewUrl: string | undefined = undefined;
-
-        if (isR2Configured()) {
-          try {
-            previewUrl = await generatePresignedPreviewUrl({
-              key: targetKey,
-              contentType: targetMime,
-              expiresIn: 300,
-            });
-
-            // Provide fallback preview if loading clean master encounters network/decoding failure
-            if (shouldUseCleanFile && ver.previewKey && ver.previewKey !== ver.cleanFileKey) {
-              fallbackPreviewUrl = await generatePresignedPreviewUrl({
-                key: ver.previewKey,
-                contentType: "image/jpeg",
-                expiresIn: 300,
-              });
-            }
-          } catch (signErr) {
-            console.error(`[R2 Preview Signing Failed for ${targetKey}]:`, signErr);
-          }
-        } else {
-          previewUrl = `/api/upload/local?key=${encodeURIComponent(targetKey)}`;
-          if (shouldUseCleanFile && ver.previewKey && ver.previewKey !== ver.cleanFileKey) {
-            fallbackPreviewUrl = `/api/upload/local?key=${encodeURIComponent(ver.previewKey)}`;
-          }
-        }
+    // Always route preview requests through our protected server asset endpoint.
+    // This ensures the client NEVER receives direct R2 URLs and guarantees that unpaid
+    // previews are dynamically watermarked on the server with 0 chance of clean file leakage.
+    const mappedVersions = (deliverable.versions || []).map((ver) => {
+      const previewUrl = `/api/review/${encodeURIComponent(deliverable.reviewToken)}/asset?version=${ver.versionNumber}`;
 
         return {
           id: ver.id,
@@ -158,7 +120,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           height: ver.height || 1000,
           changeLog: ver.changeLog ?? undefined,
           previewUrl,
-          fallbackPreviewUrl,
+          fallbackPreviewUrl: undefined,
           cleanDownloadUrl: deliverable.isUnlocked
             ? `/api/review/${deliverable.reviewToken}/download`
             : null,
@@ -177,8 +139,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             createdAt: c.createdAt.toISOString(),
           })),
         };
-      })
-    );
+      });
 
     const responsePayload = {
       id: deliverable.id,

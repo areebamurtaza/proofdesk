@@ -45,6 +45,7 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
   const [showPinsInPaidMode, setShowPinsInPaidMode] = useState<boolean>(false);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ xPercent: number; yPercent: number } | null>(null);
+  const [isMobileCommentsOpen, setIsMobileCommentsOpen] = useState<boolean>(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState<boolean>(false);
   const paymentVerifiedRef = useRef<string | null>(null);
 
@@ -259,6 +260,7 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
     if (deliverable.isUnlocked) return;
     setPendingPin({ xPercent, yPercent });
     setIsPinModeActive(false);
+    setIsMobileCommentsOpen(true);
   };
 
   const handleSubmitComment = async (content: string, authorName: string) => {
@@ -479,7 +481,7 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
         <main className="flex-1 relative bg-[#F5F3EE] flex flex-col items-center justify-center overflow-hidden">
           {/* Standard HUD */}
           {!isCompareMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-white/95 border border-[#DDD8CF] backdrop-blur-md shadow-xl text-xs">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-white/95 border border-[#DDD8CF] backdrop-blur-md shadow-xl text-xs max-w-[calc(100vw-2rem)] overflow-x-auto">
               {deliverable.isUnlocked ? (
                 <>
                   <div className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800">
@@ -553,22 +555,65 @@ export default function ClientReviewPage({ params }: ClientReviewPageProps) {
             isPinModeActive={isPinModeActive}
             selectedCommentId={selectedCommentId}
             pendingPin={pendingPin}
-            onSelectComment={setSelectedCommentId}
+            onSelectComment={(id) => {
+              setSelectedCommentId(id);
+              if (id) setIsMobileCommentsOpen(true);
+            }}
             onAddCommentPin={handleAddCommentPin}
             onSelectCompareVersion={(ver) => setCompareVersion(ver)}
           />
+
+          {/* Mobile Floating Comments Button */}
+          <button
+            onClick={() => setIsMobileCommentsOpen(true)}
+            className="lg:hidden absolute bottom-4 right-4 z-20 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#172B4D] text-[#F8F6F1] shadow-2xl hover:bg-[#0B1628] active:scale-95 transition-all text-xs font-semibold ring-2 ring-white/60"
+            aria-label="View comments"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-[#D7C3A5]" />
+            <span>Pins ({(activeVersion.comments || []).length})</span>
+            {pendingPin && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            )}
+          </button>
         </main>
 
-        <CommentSidebar
-          comments={activeVersion.comments || []}
-          selectedCommentId={selectedCommentId}
-          pendingPin={pendingPin}
-          onSelectComment={setSelectedCommentId}
-          onSubmitComment={handleSubmitComment}
-          onCancelPendingPin={() => setPendingPin(null)}
-          onToggleResolve={handleToggleResolve}
-        />
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:flex shrink-0">
+          <CommentSidebar
+            comments={activeVersion.comments || []}
+            selectedCommentId={selectedCommentId}
+            pendingPin={pendingPin}
+            onSelectComment={setSelectedCommentId}
+            onSubmitComment={handleSubmitComment}
+            onCancelPendingPin={() => setPendingPin(null)}
+            onToggleResolve={handleToggleResolve}
+          />
+        </div>
       </div>
+
+      {/* Mobile Slide-Over Drawer */}
+      {isMobileCommentsOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsMobileCommentsOpen(false)}
+          />
+          {/* Drawer content */}
+          <div className="relative w-full max-w-sm h-full z-10 flex flex-col shadow-2xl bg-white animate-in slide-in-from-right duration-200">
+            <CommentSidebar
+              comments={activeVersion.comments || []}
+              selectedCommentId={selectedCommentId}
+              pendingPin={pendingPin}
+              onSelectComment={setSelectedCommentId}
+              onSubmitComment={handleSubmitComment}
+              onCancelPendingPin={() => setPendingPin(null)}
+              onToggleResolve={handleToggleResolve}
+              onClose={() => setIsMobileCommentsOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       <ApprovalModal
         isOpen={isApprovalModalOpen}

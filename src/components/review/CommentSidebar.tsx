@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MessageSquare, Check, Send } from "lucide-react";
+import { MessageSquare, Check, Send, X } from "lucide-react";
 import { CommentItem } from "@/types/review";
 
 interface CommentSidebarProps {
@@ -13,6 +13,7 @@ interface CommentSidebarProps {
   onSubmitComment: (content: string, authorName: string) => void;
   onCancelPendingPin: () => void;
   onToggleResolve: (id: string) => void;
+  onClose?: () => void;
 }
 
 export function CommentSidebar({
@@ -23,6 +24,7 @@ export function CommentSidebar({
   onSubmitComment,
   onCancelPendingPin,
   onToggleResolve,
+  onClose,
 }: CommentSidebarProps) {
   const [authorName, setAuthorName] = useState("Reviewer");
   const [content, setContent] = useState("");
@@ -35,7 +37,7 @@ export function CommentSidebar({
   };
 
   return (
-    <aside className="w-80 border-l border-[#DDD8CF] bg-white flex flex-col h-full shrink-0 select-none shadow-sm font-sans">
+    <aside className="w-full sm:w-80 border-l border-[#DDD8CF] bg-white flex flex-col h-full shrink-0 select-none shadow-sm font-sans">
       {/* Sidebar Header */}
       <div className="p-4 border-b border-[#DDD8CF] bg-[#F8F6F1]/70 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -46,6 +48,15 @@ export function CommentSidebar({
             Feedback Pins ({comments.length})
           </h2>
         </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[#667085] hover:text-[#171A1F] hover:bg-black/5 transition-colors lg:hidden"
+            aria-label="Close feedback panel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Pending Pin Input Box */}

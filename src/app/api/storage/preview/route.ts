@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
         where: { reviewToken: clientToken },
         select: {
           id: true,
+          isUnlocked: true,
           versions: {
             where: {
               OR: [
@@ -49,12 +50,26 @@ export async function GET(req: NextRequest) {
                 { cleanFileKey: previewKey },
               ],
             },
-            select: { id: true },
+            select: { id: true, cleanFileKey: true, previewKey: true },
           },
         },
       });
 
       if (deliverable && deliverable.versions.length > 0) {
+        const isRequestingClean = deliverable.versions.some(
+          (v) => v.cleanFileKey === previewKey
+        );
+
+        if (isRequestingClean && !deliverable.isUnlocked) {
+          return NextResponse.json(
+            {
+              error:
+                "Access Denied: Clean master assets remain locked in escrow until invoice payment settles.",
+            },
+            { status: 403 }
+          );
+        }
+
         isAuthorized = true;
       }
     }

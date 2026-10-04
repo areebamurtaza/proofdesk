@@ -385,6 +385,7 @@ export default function ProofingCanvas({
   return (
     <div
       ref={containerRef}
+      onContextMenu={(e) => e.preventDefault()}
       className={`w-full h-full relative overflow-hidden bg-zinc-950 flex items-center justify-center select-none ${cursorStyle}`}
     >
       {/* ============================================================ */}
@@ -764,7 +765,7 @@ export default function ProofingCanvas({
       </Stage>
 
       {/* Floating Zoom HUD */}
-      <div className="absolute bottom-5 right-5 z-20 flex items-center gap-1 p-1 rounded-xl bg-[#0B1628]/95 border border-[#29466F]/50 backdrop-blur-md shadow-2xl text-[#F8F6F1]">
+      <div className="absolute bottom-4 left-4 sm:left-auto sm:right-5 sm:bottom-5 z-20 flex items-center gap-1 p-1 rounded-xl bg-[#0B1628]/95 border border-[#29466F]/50 backdrop-blur-md shadow-2xl text-[#F8F6F1]">
         <button
           onClick={() => handleManualZoom(-0.25)}
           title="Zoom Out (Wheel Down)"
