@@ -331,7 +331,7 @@ export function HeroProductVisual() {
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute bottom-4 right-4 z-20 max-w-[280px] sm:max-w-sm p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-[0_16px_40px_rgba(11,22,40,0.18)]"
+            className="hidden sm:block absolute bottom-4 right-4 z-20 max-w-[280px] sm:max-w-sm p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-white/60 shadow-[0_16px_40px_rgba(11,22,40,0.18)]"
           >
             <div className="flex items-center justify-between pb-2 border-b border-[#DDD8CF]/60">
               <div className="flex items-center gap-2">

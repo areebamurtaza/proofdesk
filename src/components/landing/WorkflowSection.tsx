@@ -218,7 +218,7 @@ export function WorkflowSection() {
               <button
                 key={step.id}
                 onClick={() => handleStepSelect(idx)}
-                className={`relative text-left p-2.5 sm:p-3 rounded-xl border transition-all overflow-hidden flex flex-col justify-between cursor-pointer ${
+                className={`relative text-left p-2.5 sm:p-3 rounded-xl border transition-all overflow-hidden flex flex-col justify-between cursor-pointer last:col-span-2 sm:last:col-span-1 ${
                   isActive
                     ? "bg-white border-[#172B4D] shadow-xs ring-1 ring-[#172B4D]"
                     : "bg-white/60 hover:bg-white border-[#DDD8CF] hover:border-[#172B4D]/30"
@@ -323,7 +323,7 @@ export function WorkflowSection() {
                   </div>
 
                   {/* Micro Specs Grid */}
-                  <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 pt-1">
                     {currentStep.specs.map((spec, i) => (
                       <div
                         key={i}

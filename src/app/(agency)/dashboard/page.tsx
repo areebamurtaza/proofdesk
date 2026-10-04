@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, UserButton } from "@clerk/nextjs";
 import { AgencySidebar } from "@/components/agency/AgencySidebar";
 import { DeliverableUploadModal } from "@/components/agency/DeliverableUploadModal";
 import { VersionUploadModal } from "@/components/agency/VersionUploadModal";
@@ -138,13 +138,13 @@ export default function AgencyDashboardPage() {
       {/* 2. LIGHT WORKSPACE CANVAS (#F8F6F1) */}
       <div className="flex-1 flex flex-col min-w-0 md:ml-64 min-h-screen">
         {/* Workspace Top Header */}
-        <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-serif font-bold text-[#171A1F] tracking-tight">
+        <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <h1 className="text-base sm:text-lg font-serif font-bold text-[#171A1F] tracking-tight truncate">
               {agencyName} Deliverables
             </h1>
             <span
-              className={`hidden sm:inline-flex px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full border ${
+              className={`hidden md:inline-flex px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full border shrink-0 ${
                 isOrgWorkspace
                   ? "bg-[#172B4D]/10 text-[#172B4D] border-[#172B4D]/20"
                   : "bg-amber-100 text-[#B7791F] border-amber-300"
@@ -154,22 +154,33 @@ export default function AgencyDashboardPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               href="/activity"
-              className="md:hidden px-3 py-1.5 rounded-lg bg-white border border-[#DDD8CF] text-xs font-semibold text-[#171A1F] flex items-center gap-1.5 shadow-xs"
+              className="md:hidden px-2.5 py-1.5 rounded-lg bg-white border border-[#DDD8CF] text-xs font-semibold text-[#171A1F] flex items-center gap-1 shadow-xs"
             >
               <Activity className="w-3.5 h-3.5 text-[#172B4D]" />
-              <span>Audit</span>
+              <span className="hidden xs:inline">Audit</span>
             </Link>
 
             <button
               onClick={() => setIsUploadModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-[#F8F6F1] text-xs font-semibold flex items-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+              className="px-3 sm:px-4 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-[#F8F6F1] text-xs font-semibold flex items-center gap-1.5 sm:gap-2 shadow-sm transition-all active:scale-[0.98]"
             >
               <Plus className="w-3.5 h-3.5 text-[#D7C3A5]" />
-              <span>Upload Deliverable</span>
+              <span className="hidden xs:inline">Upload Deliverable</span>
+              <span className="xs:hidden">Upload</span>
             </button>
+
+            <div className="md:hidden flex items-center">
+              <UserButton
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "w-7 h-7 border border-[#DDD8CF]",
+                  },
+                }}
+              />
+            </div>
           </div>
         </header>
 

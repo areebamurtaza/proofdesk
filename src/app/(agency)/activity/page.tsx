@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, UserButton } from "@clerk/nextjs";
 import {
   Activity,
   ArrowLeft,
@@ -152,43 +152,47 @@ export default function AgencyActivityPage() {
       {/* 2. LIGHT WORKSPACE CANVAS (#F8F6F1) */}
       <div className="flex-1 flex flex-col min-w-0 md:ml-64 min-h-screen">
         {/* Workspace Top Header */}
-        <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
-          <div className="flex items-center gap-3">
+        <header className="h-16 border-b border-[#DDD8CF] bg-white/80 backdrop-blur-md px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 sticky top-0 z-10">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <Link
               href="/dashboard"
-              className="p-2 rounded-xl bg-white hover:bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] transition-colors shadow-xs md:hidden"
+              className="p-2 rounded-xl bg-white hover:bg-[#F8F6F1] border border-[#DDD8CF] text-[#171A1F] transition-colors shadow-xs md:hidden shrink-0"
               title="Return to Dashboard"
             >
               <ArrowLeft className="w-4 h-4 text-[#172B4D]" />
             </Link>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-serif font-bold tracking-tight text-[#171A1F]">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-lg font-serif font-bold tracking-tight text-[#171A1F] truncate">
                   Client Audit &amp; Telemetry
                 </h1>
-                <span className="px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#172B4D]/10 text-[#172B4D] border border-[#172B4D]/20">
+                <span className="hidden xs:inline-flex px-2 py-0.5 text-[10px] font-mono font-bold rounded-full bg-[#172B4D]/10 text-[#172B4D] border border-[#172B4D]/20 shrink-0">
                   Audit Trail
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => fetchLogs(orgId)}
               disabled={isLoading}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-white text-xs font-semibold transition-colors disabled:opacity-50 shadow-xs"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-[#172B4D] hover:bg-[#0B1628] text-white text-xs font-semibold transition-colors disabled:opacity-50 shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-[#D7C3A5] ${isLoading ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh Feed</span>
             </button>
+
+            <div className="md:hidden">
+              <UserButton afterSignOutUrl="/" />
+            </div>
           </div>
         </header>
 
         {/* Main Content Area */}
-        <main className="p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
+        <main className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-7xl w-full mx-auto">
           <div className="space-y-1">
-            <h2 className="text-xl font-serif font-bold text-[#171A1F]">Cryptographic Telemetry Ledger</h2>
+            <h2 className="text-lg sm:text-xl font-serif font-bold text-[#171A1F]">Cryptographic Telemetry Ledger</h2>
             <p className="text-xs sm:text-sm text-[#667085]">
               Real-time audit records of client token views, pin drops, reviews, and unlocked deliverable downloads.
             </p>
@@ -322,7 +326,7 @@ export default function AgencyActivityPage() {
                     </div>
 
                     {/* Right: Technical Device & Network Footprint */}
-                    <div className="flex items-center gap-3 text-[11px] font-mono text-[#667085] self-end sm:self-center">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] font-mono text-[#667085] self-start sm:self-center">
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F8F6F1] border border-[#DDD8CF]">
                         {device.isMobile ? (
                           <Smartphone className="w-3.5 h-3.5 text-[#667085]" />

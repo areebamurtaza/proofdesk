@@ -29,7 +29,7 @@ export function Hero() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
-        className="text-5xl sm:text-7xl lg:text-[84px] font-serif font-bold tracking-tight text-[#171A1F] max-w-5xl mx-auto leading-[1.06]"
+        className="text-4xl xs:text-5xl sm:text-7xl lg:text-[84px] font-serif font-bold tracking-tight text-[#171A1F] max-w-5xl mx-auto leading-[1.06]"
       >
         Where creative work <br />
         <span className="italic text-[#172B4D] relative">
